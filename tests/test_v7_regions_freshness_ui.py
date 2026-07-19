@@ -212,3 +212,19 @@ def test_current_results_do_not_trigger_re_evaluation(tmp_path, monkeypatch):
     payload = web_app_v7.load_dashboard_payload()
 
     assert payload["summary"]["total"] == 1
+
+
+def test_unexpected_results_failure_returns_json(monkeypatch):
+    def fail_to_load():
+        raise RuntimeError("simulated stale service failure")
+
+    monkeypatch.setattr(web_app_v7, "load_dashboard_payload", fail_to_load)
+
+    response = web_app_v7.app.test_client().get("/api/results")
+
+    assert response.status_code == 500
+    assert response.is_json
+    assert (
+        response.get_json()["error"]
+        == "結果服務發生未預期錯誤，請關閉舊的命令視窗，再重新開啟找房介面。"
+    )

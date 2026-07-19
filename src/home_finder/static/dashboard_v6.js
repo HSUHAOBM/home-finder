@@ -133,8 +133,7 @@ async function startSelectedSearchV6() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile: state.activeProfile, mode }),
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || payload.message || "無法開始搜尋");
+    const payload = await readJsonResponse(response, "無法開始搜尋");
     renderStatus(payload);
   } catch (error) {
     document.querySelector("#status-message").textContent = `無法開始：${error.message}`;

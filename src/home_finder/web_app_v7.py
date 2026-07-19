@@ -378,6 +378,13 @@ def api_results_v7():
         return jsonify(load_dashboard_payload())
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         return jsonify({"error": f"無法讀取現有結果：{exc}"}), 500
+    except Exception:
+        app.logger.exception("Unexpected failure while loading dashboard results")
+        return jsonify(
+            {
+                "error": "結果服務發生未預期錯誤，請關閉舊的命令視窗，再重新開啟找房介面。"
+            }
+        ), 500
 
 
 def api_settings_post_v7():

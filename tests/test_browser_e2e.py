@@ -85,10 +85,22 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 page.locator("#settings-close").click()
                 expect(dialog).not_to_be_visible()
 
+                assert browser_problems == []
+                page.route(
+                    "**/api/results",
+                    lambda route: route.fulfill(
+                        status=500,
+                        content_type="text/html",
+                        body="<!doctype html><title>stale server</title>",
+                    ),
+                )
+                page.reload(wait_until="networkidle")
+                expect(page.locator("#results")).to_contain_text(
+                    "本機服務版本可能已更新"
+                )
+
                 browser.close()
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
-
-        assert browser_problems == []

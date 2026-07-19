@@ -91,14 +91,30 @@ function renderNavigation() {
   if (state.settings) $("#criteria-summary").innerHTML = state.settings.districts.map((district) => `<span>${escapeHtml(district)}</span>`).join("") + `<span>三種目標各自計算</span><span>條件可調整</span>`;
 }
 
+async function readJsonResponse(response, fallbackMessage) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    if (response.status >= 500) {
+      throw new Error("本機服務版本可能已更新，請關閉舊的命令視窗，再重新開啟找房介面。");
+    }
+    throw new Error(fallbackMessage);
+  }
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || payload.message || fallbackMessage);
+  return payload;
+}
+
+
 async function loadResults() {
-  const response = await fetch("/api/results", { cache: "no-store" }); const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "讀取結果失敗"); state.payload = payload;
+  const response = await fetch("/api/results", { cache: "no-store" });
+  const payload = await readJsonResponse(response, "讀取結果失敗");
+  state.payload = payload;
   $("#updated-at").textContent = payload.updated_at ? `結果更新：${new Date(payload.updated_at).toLocaleString("zh-TW")}` : "還沒有搜尋紀錄";
 }
 async function loadSettings() {
-  const response = await fetch("/api/settings", { cache: "no-store" }); const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "讀取條件失敗"); state.settings = payload;
+  const response = await fetch("/api/settings", { cache: "no-store" });
+  const payload = await readJsonResponse(response, "讀取條件失敗");
+  state.settings = payload;
 }
 
 function fillSettingsForm() {
@@ -121,8 +137,9 @@ function collectSettings() {
 async function saveSettings(event) {
   event.preventDefault(); const button = $("#settings-save"); button.disabled = true; $("#settings-error").textContent = "";
   try {
-    const response = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(collectSettings()) }); const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "儲存失敗"); state.settings = payload.settings; state.payload = payload.results; renderNavigation(); renderResults(); $("#settings-dialog").close(); $("#status-message").textContent = "條件已儲存，並套用到目前結果";
+    const response = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(collectSettings()) });
+    const payload = await readJsonResponse(response, "儲存失敗");
+    state.settings = payload.settings; state.payload = payload.results; renderNavigation(); renderResults(); $("#settings-dialog").close(); $("#status-message").textContent = "條件已儲存，並套用到目前結果";
   } catch (error) { $("#settings-error").textContent = error.message; } finally { button.disabled = false; }
 }
 
@@ -131,10 +148,10 @@ function renderStatus(status) {
   $("#search-label").textContent = status.running ? "搜尋進行中" : "開始重新搜尋"; $("#status-message").textContent = status.error ? `${status.message}：${status.error}` : status.message; light.className = `status-light ${status.running ? "running" : status.phase}`;
 }
 async function pollStatus() {
-  try { const response = await fetch("/api/status", { cache: "no-store" }); const status = await response.json(); renderStatus(status); if (!status.running && status.finished_at && status.finished_at !== state.lastFinishedAt) { state.lastFinishedAt = status.finished_at; await loadResults(); renderNavigation(); renderResults(); } } catch { $("#status-message").textContent = "暫時無法連接本機介面"; }
+  try { const response = await fetch("/api/status", { cache: "no-store" }); const status = await readJsonResponse(response, "讀取狀態失敗"); renderStatus(status); if (!status.running && status.finished_at && status.finished_at !== state.lastFinishedAt) { state.lastFinishedAt = status.finished_at; await loadResults(); renderNavigation(); renderResults(); } } catch (error) { $("#status-message").textContent = error.message.includes("本機服務版本") ? error.message : "暫時無法連接本機介面"; }
 }
 async function startSearch() {
-  $("#search-button").disabled = true; try { const response = await fetch("/api/search", { method: "POST" }); renderStatus(await response.json()); } catch (error) { $("#status-message").textContent = `無法開始：${error.message}`; $("#search-button").disabled = false; }
+  $("#search-button").disabled = true; try { const response = await fetch("/api/search", { method: "POST" }); renderStatus(await readJsonResponse(response, "開始搜尋失敗")); } catch (error) { $("#status-message").textContent = `無法開始：${error.message}`; $("#search-button").disabled = false; }
 }
 
 $("#search-button").addEventListener("click", startSearch); $("#settings-button").addEventListener("click", () => { fillSettingsForm(); $("#settings-dialog").showModal(); }); $("#settings-close").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-cancel").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-form").addEventListener("submit", saveSettings);
