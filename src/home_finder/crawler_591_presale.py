@@ -9,6 +9,7 @@ from typing import Callable
 
 from playwright.sync_api import Browser, Page, sync_playwright
 
+from .storage import atomic_write_json
 from .user_models import HomeListing
 
 
@@ -166,8 +167,7 @@ class Browser591PresaleCrawler:
             return {}
 
     def _save_cache(self, cache: dict[str, dict]) -> None:
-        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-        self.cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+        atomic_write_json(self.cache_path, cache)
 
     def fetch(self) -> list[HomeListing]:
         candidates: list[HomeListing] = []

@@ -10,6 +10,7 @@ from . import web_app as base
 from .crawler_591_browser_v3 import Browser591Crawler
 from .crawler_591_presale_v2 import Browser591PresaleCrawler
 from .make_report import render_report
+from .storage import atomic_write_json
 from .user_models import HomeListing
 from .user_ranking_v4 import evaluate_all
 
@@ -135,7 +136,7 @@ def save_settings(settings: dict) -> None:
     config["source"]["districts"] = settings["districts"]
     config["source"]["max_details"] = settings["search"]["resale_details"]
     config["source"]["presale_max_details"] = settings["search"]["presale_details"]
-    base.CONFIG_PATH.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_json(base.CONFIG_PATH, config)
 
 
 def _unique_listings(records: list[dict]) -> list[HomeListing]:

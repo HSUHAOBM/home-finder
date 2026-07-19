@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .storage import atomic_write_json
 from .user_models import HomeListing
 
 
@@ -57,6 +58,5 @@ def annotate_history(
             "lifecycle_status": item.lifecycle_status,
         }
 
-    history_path.parent.mkdir(parents=True, exist_ok=True)
-    history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_json(history_path, history)
     return annotated

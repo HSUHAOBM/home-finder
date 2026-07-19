@@ -19,6 +19,7 @@ from .crawler_591_presale import SECTION_IDS as LEGACY_SECTION_IDS
 from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .kaohsiung_districts import ALL_DISTRICTS, DISTRICT_GROUPS, SECTION_IDS
 from .listing_history import annotate_history
+from .storage import atomic_write_json
 from .user_models import HomeListing
 from .user_ranking_v6 import evaluate_all
 
@@ -65,8 +66,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_json(path, payload)
 
 
 def _data_completeness(card: dict[str, Any]) -> int:
@@ -220,6 +220,44 @@ def _full_scan_merge(
     return list(merged.values()), archived
 
 
+def _full_scan_archive_skip_reason(
+    existing: list[HomeListing],
+    fetched: list[HomeListing],
+    profile: str,
+    diagnostics: dict[str, Any],
+) -> str | None:
+    existing_count = sum(
+        previous.previous._listing_profile(item) == profile for item in existing
+    )
+    if not existing_count:
+        return None
+    if not fetched:
+        return "完整盤點未讀取到任何房源"
+    minimum_expected = max(1, math.ceil(existing_count * 0.25))
+    if existing_count >= 4 and len(fetched) < minimum_expected:
+        return (
+            f"完整盤點讀取量異常偏低（{len(fetched)}/{existing_count}）"
+        )
+    detail_failures = int(diagnostics.get("detail_failures") or 0)
+    if detail_failures >= len(fetched):
+        return "本次讀取的房源詳情全部失敗"
+    return None
+
+
+def _merge_full_scan_safely(
+    existing: list[HomeListing],
+    fetched: list[HomeListing],
+    profile: str,
+    diagnostics: dict[str, Any],
+) -> tuple[list[HomeListing], int, str | None]:
+    reason = _full_scan_archive_skip_reason(existing, fetched, profile, diagnostics)
+    if reason:
+        preserved = previous.merge_search_results(existing, fetched, profile, "daily")
+        return preserved, 0, reason
+    listings, archived = _full_scan_merge(existing, fetched, profile)
+    return listings, archived, None
+
+
 def _run_search(profile: str, mode: str) -> None:
     try:
         settings = load_settings()
@@ -235,8 +273,11 @@ def _run_search(profile: str, mode: str) -> None:
         fetched = annotate_history(fetched, path=HISTORY_PATH)
         existing = previous.previous._load_existing_listings()
         archived = 0
+        archive_skip_reason: str | None = None
         if mode == "full":
-            listings, archived = _full_scan_merge(existing, fetched, profile)
+            listings, archived, archive_skip_reason = _merge_full_scan_safely(
+                existing, fetched, profile, diagnostics
+            )
         else:
             listings = previous.merge_search_results(existing, fetched, profile, mode)
 
@@ -244,11 +285,19 @@ def _run_search(profile: str, mode: str) -> None:
         records = [item.to_dict() for item in evaluate_all(listings, settings)]
         previous._write_results(records)
         diagnostics["archived_after_two_misses"] = archived
+        diagnostics["archiving_skipped"] = archive_skip_reason is not None
+        if archive_skip_reason:
+            diagnostics["archive_skip_reason"] = archive_skip_reason
+        else:
+            diagnostics.pop("archive_skip_reason", None)
         all_diagnostics = _load_json(DIAGNOSTICS_PATH)
         all_diagnostics[profile] = diagnostics
         _write_json(DIAGNOSTICS_PATH, all_diagnostics)
 
         insight = build_dashboard_payload(records)["profile_insights"][profile]
+        status_note = (
+            "；抓取異常，未更新可能下架狀態" if archive_skip_reason else ""
+        )
         base._update_state(
             running=False,
             phase="complete",
@@ -257,6 +306,7 @@ def _run_search(profile: str, mode: str) -> None:
             message=(
                 f"{profile}{mode_label}完成：{insight['exact_match']} 組完全符合、"
                 f"{insight['acceptable']} 組可接受、本次讀取 {len(fetched)} 筆"
+                f"{status_note}"
             ),
             finished_at=base._iso_now(),
             error=None,

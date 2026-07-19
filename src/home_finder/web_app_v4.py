@@ -12,6 +12,7 @@ from .crawler_591_multi import MultiPage591ResaleCrawler
 from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .listing_history import annotate_history
 from .make_report import render_report
+from .storage import atomic_write_json
 from .user_models import HomeListing
 from .user_ranking_v5 import evaluate_all
 
@@ -62,7 +63,7 @@ def save_settings(settings: dict) -> None:
     config = json.loads(base.CONFIG_PATH.read_text(encoding="utf-8"))
     config["source"]["pages"] = settings["search"]["pages"]
     config["source"]["publish_days"] = settings["search"]["publish_days"]
-    base.CONFIG_PATH.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_json(base.CONFIG_PATH, config)
 
 
 def _unique_listings(records: list[dict]) -> list[HomeListing]:

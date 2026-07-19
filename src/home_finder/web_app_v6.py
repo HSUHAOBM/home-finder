@@ -15,6 +15,7 @@ from . import web_app as base
 from . import web_app_v5 as previous
 from .listing_history import annotate_history
 from .make_report import render_report
+from .storage import atomic_write_json, atomic_write_text
 from .user_models import HomeListing
 from .user_ranking_v6 import evaluate_all
 
@@ -284,12 +285,9 @@ def _crawl_for_mode(
 
 
 def _write_results(records: list[dict[str, Any]]) -> None:
-    base.RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    base.RESULTS_PATH.write_text(
-        json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    base.SUMMARY_PATH.write_text(
-        render_report(cluster_selected_records(records)), encoding="utf-8"
+    atomic_write_json(base.RESULTS_PATH, records)
+    atomic_write_text(
+        base.SUMMARY_PATH, render_report(cluster_selected_records(records))
     )
 
 

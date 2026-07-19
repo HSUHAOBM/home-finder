@@ -97,3 +97,46 @@ def test_v7_page_loads_region_and_filter_controls():
 
     assert "dashboard_v7.js" in page
     assert "dashboard_v7.css" in page
+
+
+def test_empty_full_scan_preserves_existing_and_miss_count(tmp_path, monkeypatch):
+    history = tmp_path / "history.json"
+    history.write_text(
+        json.dumps({"A": {"missed_full_scans": 1}}), encoding="utf-8"
+    )
+    monkeypatch.setattr(web_app_v7, "HISTORY_PATH", history)
+
+    merged, archived, reason = web_app_v7._merge_full_scan_safely(
+        [listing()], [], "大樓公寓華廈", {"detail_failures": 0}
+    )
+
+    assert [item.external_id for item in merged] == ["A"]
+    assert archived == 0
+    assert reason == "完整盤點未讀取到任何房源"
+    saved = json.loads(history.read_text(encoding="utf-8"))
+    assert saved["A"]["missed_full_scans"] == 1
+
+
+def test_all_detail_failures_preserve_unseen_existing_listing():
+    failed = listing("B", lifecycle_status="possibly_removed")
+
+    merged, archived, reason = web_app_v7._merge_full_scan_safely(
+        [listing()], [failed], "大樓公寓華廈", {"detail_failures": 1}
+    )
+
+    assert {item.external_id for item in merged} == {"A", "B"}
+    assert archived == 0
+    assert reason == "本次讀取的房源詳情全部失敗"
+
+
+def test_sharp_full_scan_drop_preserves_existing_listings():
+    existing = [listing(str(index)) for index in range(8)]
+    fetched = [listing("NEW")]
+
+    merged, archived, reason = web_app_v7._merge_full_scan_safely(
+        existing, fetched, "大樓公寓華廈", {"detail_failures": 0}
+    )
+
+    assert len(merged) == 9
+    assert archived == 0
+    assert reason == "完整盤點讀取量異常偏低（1/8）"
