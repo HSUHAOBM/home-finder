@@ -20,6 +20,9 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "browser_e2e: opt-in real-browser tests against an isolated local server",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/home_finder"]

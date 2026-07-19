@@ -60,6 +60,15 @@ uv run pytest
 
 測試涵蓋條件驗證、評分、重複房源、591 解析、歷史紀錄與網頁 API。
 
+真實瀏覽器 E2E 預設跳過，需明確啟用：
+
+```powershell
+$env:RUN_BROWSER_E2E = "1"
+uv run pytest -q tests/test_browser_e2e.py
+```
+
+若本機尚未安裝 Chromium，先執行 `uv run playwright install chromium`。E2E 使用隔離測試資料，不會改寫個人條件、現有房源或連線爬取 591。
+
 ## 專案結構
 
 - `src/home_finder/web_app_v7.py`：目前正式網頁入口。
