@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+from .result_store import read_result_records
 
 
 def _value(value, suffix="") -> str:
@@ -95,7 +96,7 @@ def main() -> None:
     parser.add_argument("--input", default="output/current-results.json")
     parser.add_argument("--output", default="output/current-summary.md")
     args = parser.parse_args()
-    results = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    results = read_result_records(Path(args.input))
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_report(results), encoding="utf-8")

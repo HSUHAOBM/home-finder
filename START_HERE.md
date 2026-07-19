@@ -34,6 +34,8 @@ uv run python -m home_finder.web_app_v7
 
 介面會顯示完全符合、可接受、待確認、只差一項與已排除房源。完整結果保存在 `output/current-results.json`，方便下次開啟與日後比較。
 
+若程式更新了評分規則，第一次開啟時會用既有房源在本機重新評估，不會額外連線爬取 591。
+
 ## 執行測試
 
 ```powershell

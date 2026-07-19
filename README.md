@@ -43,12 +43,14 @@ uv run python -m home_finder.web_app_v7
 
 ## 資料保存
 
-- `output/current-results.json`：目前完整結果。
+- `output/current-results.json`：目前完整結果，含資料格式與評分規則版本。
 - `output/current-summary.md`：命令列流程產生的摘要。
 - `data/listing_history.json`：首次發現、再次出現與可能下架紀錄。
 - `data/cache/`：降低重複請求的詳情快取。
 
 以上都是本機執行資料，不會納入 Git。範例資料則保留在 `data/sample_listings.json` 與 `data/user_sample_listings.json`。
+
+評分規則版本更新後，介面會用既有房源在本機重新評估一次，不會因此重新爬取 591。
 
 ## 測試
 

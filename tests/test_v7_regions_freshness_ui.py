@@ -3,9 +3,12 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 
 from home_finder import web_app_v7
+from home_finder.result_store import RANKING_VERSION, RESULT_SCHEMA_VERSION
 from home_finder.user_models import HomeListing
+from home_finder.user_ranking_v6 import evaluate_all
 
 
 def listing(external_id: str = "A", **changes) -> HomeListing:
@@ -140,3 +143,72 @@ def test_sharp_full_scan_drop_preserves_existing_listings():
     assert len(merged) == 9
     assert archived == 0
     assert reason == "完整盤點讀取量異常偏低（1/8）"
+
+
+def test_v7_script_selects_first_non_empty_result_category():
+    script = (
+        Path(web_app_v7.__file__).with_name("static") / "dashboard_v7.js"
+    ).read_text(encoding="utf-8")
+
+    assert "RESULT_STATUS_PRIORITY_V7" in script
+    assert "selectFirstNonEmptyStatusV7();" in script
+
+
+def test_legacy_results_are_re_evaluated_locally(tmp_path, monkeypatch):
+    results_path = tmp_path / "current-results.json"
+    summary_path = tmp_path / "current-summary.md"
+    settings = web_app_v7.load_settings()
+    expected = [item.to_dict() for item in evaluate_all([listing()], settings)]
+    legacy = [{**expected[0], "status": "rejected", "score": 999}]
+    results_path.write_text(json.dumps(legacy, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(web_app_v7.base, "RESULTS_PATH", results_path)
+    monkeypatch.setattr(web_app_v7.base, "SUMMARY_PATH", summary_path)
+    monkeypatch.setattr(
+        web_app_v7,
+        "_crawl_for_mode",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("不應重新爬取")
+        ),
+    )
+
+    payload = web_app_v7.load_dashboard_payload()
+
+    saved = json.loads(results_path.read_text(encoding="utf-8"))
+    assert saved["schema_version"] == RESULT_SCHEMA_VERSION
+    assert saved["ranking_version"] == RANKING_VERSION
+    assert saved["records"] == expected
+    assert payload["result_schema_version"] == RESULT_SCHEMA_VERSION
+    assert payload["ranking_version"] == RANKING_VERSION
+
+
+def test_current_results_do_not_trigger_re_evaluation(tmp_path, monkeypatch):
+    results_path = tmp_path / "current-results.json"
+    summary_path = tmp_path / "current-summary.md"
+    records = [
+        item.to_dict()
+        for item in evaluate_all([listing()], web_app_v7.load_settings())
+    ]
+    results_path.write_text(
+        json.dumps(
+            {
+                "schema_version": RESULT_SCHEMA_VERSION,
+                "ranking_version": RANKING_VERSION,
+                "records": records,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app_v7.base, "RESULTS_PATH", results_path)
+    monkeypatch.setattr(web_app_v7.base, "SUMMARY_PATH", summary_path)
+    monkeypatch.setattr(
+        web_app_v7,
+        "evaluate_all",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("不應重算")
+        ),
+    )
+
+    payload = web_app_v7.load_dashboard_payload()
+
+    assert payload["summary"]["total"] == 1

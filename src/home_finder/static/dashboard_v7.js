@@ -5,6 +5,25 @@ const DISTRICT_GROUPS_V7 = {
   "旗美山區": ["旗山區", "美濃區", "六龜區", "甲仙區", "杉林區", "內門區", "茂林區", "桃源區", "那瑪夏區"],
 };
 const ORIGINAL_DISTRICTS_V7 = ["楠梓區", "三民區", "橋頭區", "大社區"];
+const RESULT_STATUS_PRIORITY_V7 = [
+  "exact_match",
+  "acceptable",
+  "needs_verification",
+  "near_match",
+  "rejected",
+];
+
+function selectFirstNonEmptyStatusV7() {
+  if (!state.payload || profileItems(state.activeProfile, state.activeStatus).length) return;
+  const nextStatus = RESULT_STATUS_PRIORITY_V7.find(
+    (status) => profileItems(state.activeProfile, status).length
+  );
+  if (!nextStatus || nextStatus === state.activeStatus) return;
+  state.activeStatus = nextStatus;
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.status === nextStatus);
+  });
+}
 
 const districtOptionsV7 = document.querySelector(".district-options");
 districtOptionsV7.outerHTML = `
@@ -118,6 +137,7 @@ renderInsight = function renderInsightV7() {
 
 const previousRenderNavigationV7 = renderNavigation;
 renderNavigation = function renderNavigationV7() {
+  selectFirstNonEmptyStatusV7();
   previousRenderNavigationV7();
   if (!state.settings) return;
   const select = document.querySelector("#result-district");

@@ -19,6 +19,12 @@ from .crawler_591_presale import SECTION_IDS as LEGACY_SECTION_IDS
 from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .kaohsiung_districts import ALL_DISTRICTS, DISTRICT_GROUPS, SECTION_IDS
 from .listing_history import annotate_history
+from .result_store import (
+    RANKING_VERSION,
+    RESULT_SCHEMA_VERSION,
+    read_result_document,
+    result_document_is_current,
+)
 from .storage import atomic_write_json
 from .user_models import HomeListing
 from .user_ranking_v6 import evaluate_all
@@ -27,6 +33,7 @@ from .user_ranking_v6 import evaluate_all
 CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
 DIAGNOSTICS_PATH = base.BASE_DIR / "data" / "search_diagnostics.json"
 HISTORY_PATH = base.BASE_DIR / "data" / "listing_history.json"
+_result_upgrade_lock = threading.Lock()
 
 editable_settings.ALLOWED_DISTRICTS = set(ALL_DISTRICTS)
 LEGACY_SECTION_IDS.update(SECTION_IDS)
@@ -132,12 +139,40 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
     return _add_display_metrics(previous.build_dashboard_payload(records))
 
 
+def _upgrade_saved_results_if_needed() -> bool:
+    """Re-evaluate legacy/stale saved results locally without crawling 591."""
+    with _result_upgrade_lock:
+        records, schema_version, ranking_version = read_result_document(
+            base.RESULTS_PATH
+        )
+        if result_document_is_current(schema_version, ranking_version):
+            return False
+        try:
+            listings = previous.previous._unique_listings(records)
+        except (KeyError, TypeError, ValueError):
+            # Early dashboard-only records lack enough source fields to re-rank.
+            return False
+        refreshed = [
+            item.to_dict() for item in evaluate_all(listings, load_settings())
+        ]
+        previous._write_results(refreshed)
+        return True
+
+
 def load_dashboard_payload() -> dict[str, Any]:
     if not base.RESULTS_PATH.exists():
-        return build_dashboard_payload([])
-    return build_dashboard_payload(
-        json.loads(base.RESULTS_PATH.read_text(encoding="utf-8"))
+        payload = build_dashboard_payload([])
+        payload["result_schema_version"] = RESULT_SCHEMA_VERSION
+        payload["ranking_version"] = RANKING_VERSION
+        return payload
+    _upgrade_saved_results_if_needed()
+    records, schema_version, ranking_version = read_result_document(
+        base.RESULTS_PATH
     )
+    payload = build_dashboard_payload(records)
+    payload["result_schema_version"] = schema_version
+    payload["ranking_version"] = ranking_version
+    return payload
 
 
 def _crawl_for_mode(
@@ -341,7 +376,7 @@ def index_v7():
 def api_results_v7():
     try:
         return jsonify(load_dashboard_payload())
-    except (OSError, json.JSONDecodeError) as exc:
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
         return jsonify({"error": f"無法讀取現有結果：{exc}"}), 500
 
 

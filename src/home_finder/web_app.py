@@ -14,6 +14,7 @@ from flask import Flask, jsonify, render_template
 from .crawler_591_browser_v3 import Browser591Crawler
 from .crawler_591_presale_v2 import Browser591PresaleCrawler
 from .make_report import render_report
+from .result_store import read_result_records
 from .user_ranking_v3 import evaluate_all
 
 
@@ -151,7 +152,7 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
 def load_dashboard_payload() -> dict[str, Any]:
     if not RESULTS_PATH.exists():
         return build_dashboard_payload([])
-    records = json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
+    records = read_result_records(RESULTS_PATH)
     return build_dashboard_payload(records)
 
 

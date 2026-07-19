@@ -15,7 +15,8 @@ from . import web_app as base
 from . import web_app_v5 as previous
 from .listing_history import annotate_history
 from .make_report import render_report
-from .storage import atomic_write_json, atomic_write_text
+from .result_store import read_result_records, write_result_records
+from .storage import atomic_write_text
 from .user_models import HomeListing
 from .user_ranking_v6 import evaluate_all
 
@@ -252,9 +253,7 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
 def load_dashboard_payload() -> dict[str, Any]:
     if not base.RESULTS_PATH.exists():
         return build_dashboard_payload([])
-    return build_dashboard_payload(
-        json.loads(base.RESULTS_PATH.read_text(encoding="utf-8"))
-    )
+    return build_dashboard_payload(read_result_records(base.RESULTS_PATH))
 
 
 def merge_search_results(
@@ -285,7 +284,7 @@ def _crawl_for_mode(
 
 
 def _write_results(records: list[dict[str, Any]]) -> None:
-    atomic_write_json(base.RESULTS_PATH, records)
+    write_result_records(base.RESULTS_PATH, records)
     atomic_write_text(
         base.SUMMARY_PATH, render_report(cluster_selected_records(records))
     )

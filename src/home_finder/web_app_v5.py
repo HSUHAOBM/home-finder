@@ -14,6 +14,7 @@ from .crawler_591_multi import MultiPage591ResaleCrawler
 from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .listing_history import annotate_history
 from .make_report import render_report
+from .result_store import read_result_records
 from .user_models import HomeListing
 from .user_ranking_v6 import evaluate_all
 
@@ -71,7 +72,7 @@ def _unique_listings(records: list[dict[str, Any]]) -> list[HomeListing]:
 def _load_existing_listings() -> list[HomeListing]:
     if not base.RESULTS_PATH.exists():
         return []
-    return _unique_listings(json.loads(base.RESULTS_PATH.read_text(encoding="utf-8")))
+    return _unique_listings(read_result_records(base.RESULTS_PATH))
 
 
 def merge_target_listings(
@@ -234,7 +235,7 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
 def load_dashboard_payload() -> dict[str, Any]:
     if not base.RESULTS_PATH.exists():
         return build_dashboard_payload([])
-    records = json.loads(base.RESULTS_PATH.read_text(encoding="utf-8"))
+    records = read_result_records(base.RESULTS_PATH)
     return build_dashboard_payload(records)
 
 

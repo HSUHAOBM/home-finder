@@ -10,6 +10,7 @@ from . import web_app as base
 from .crawler_591_browser_v3 import Browser591Crawler
 from .crawler_591_presale_v2 import Browser591PresaleCrawler
 from .make_report import render_report
+from .result_store import read_result_records
 from .storage import atomic_write_json
 from .user_models import HomeListing
 from .user_ranking_v4 import evaluate_all
@@ -152,7 +153,7 @@ def _unique_listings(records: list[dict]) -> list[HomeListing]:
 def re_evaluate_existing(settings: dict) -> None:
     if not base.RESULTS_PATH.exists():
         return
-    existing = json.loads(base.RESULTS_PATH.read_text(encoding="utf-8"))
+    existing = read_result_records(base.RESULTS_PATH)
     records = [item.to_dict() for item in evaluate_all(_unique_listings(existing), settings)]
     base.RESULTS_PATH.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
     base.SUMMARY_PATH.write_text(render_report(records), encoding="utf-8")
