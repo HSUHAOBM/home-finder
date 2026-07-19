@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="可調整三種購屋目標的高雄找房介面">
+    <title>我的高雄找房雷達</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard_v2.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard_v3.css') }}">
+    <script src="{{ url_for('static', filename='dashboard_v3.js') }}" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="eyebrow">KAOHSIUNG HOME RADAR</div>
+        <div class="hero-grid">
+          <div>
+            <h1>我的高雄找房雷達</h1>
+            <p class="intro">三種購屋目標分開整理；條件可以自己調整，排除房源也保留原始來源。</p>
+          </div>
+          <div class="hero-actions">
+            <button id="settings-button" class="settings-button" type="button">調整條件</button>
+            <button id="search-button" class="search-button" type="button">
+              <span class="button-dot" aria-hidden="true"></span>
+              <span id="search-label">開始重新搜尋</span>
+            </button>
+          </div>
+        </div>
+        <div id="criteria-summary" class="criteria" aria-label="目前找房條件"></div>
+      </header>
+
+      <section class="status-strip" aria-live="polite">
+        <div class="status-main"><span id="status-light" class="status-light"></span><span id="status-message">正在讀取現有結果…</span></div>
+        <div id="updated-at" class="updated-at"></div>
+      </section>
+
+      <section class="goal-section" aria-labelledby="goal-picker-title">
+        <div class="section-label" id="goal-picker-title">選擇購屋目標</div>
+        <div class="goal-picker">
+          <button class="goal-card condo active" type="button" data-profile="大樓公寓華廈">
+            <span class="goal-number">目標 01</span><strong>大樓・公寓・華廈</strong>
+            <span class="goal-rule" data-goal-rule></span>
+            <span class="goal-counts"><b data-count="qualified">0</b> 符合・<b data-count="pending">0</b> 待確認・<b data-count="rejected">0</b> 排除</span>
+          </button>
+          <button class="goal-card townhouse" type="button" data-profile="透天別墅">
+            <span class="goal-number">目標 02</span><strong>透天・車墅</strong>
+            <span class="goal-rule" data-goal-rule></span>
+            <span class="goal-counts"><b data-count="qualified">0</b> 符合・<b data-count="pending">0</b> 待確認・<b data-count="rejected">0</b> 排除</span>
+          </button>
+          <button class="goal-card presale" type="button" data-profile="預售屋">
+            <span class="goal-number">目標 03</span><strong>預售屋</strong>
+            <span class="goal-rule" data-goal-rule></span>
+            <span class="goal-counts"><b data-count="qualified">0</b> 符合・<b data-count="pending">0</b> 待確認・<b data-count="rejected">0</b> 排除</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="active-goal">
+        <div><span id="active-goal-number" class="section-label">目標 01</span><h2 id="active-goal-title">大樓・公寓・華廈</h2><p id="active-goal-description"></p></div>
+        <div id="active-goal-total" class="goal-total">0 筆房源</div>
+      </section>
+
+      <nav class="tabs" aria-label="目前目標的結果分類">
+        <button class="tab active" type="button" data-status="qualified">直接符合 <span id="tab-qualified">0</span></button>
+        <button class="tab" type="button" data-status="needs_verification">待確認 <span id="tab-pending">0</span></button>
+        <button class="tab" type="button" data-status="rejected">已排除 <span id="tab-rejected">0</span></button>
+      </nav>
+      <section id="results" class="results" aria-live="polite"></section>
+
+      <footer><p>只在你的電腦執行・同時間只跑一輪・請求間隔至少 2 秒</p><p>廣告資料可能變動，看屋前仍要確認謄本、平面車位權狀與實際格局。</p></footer>
+    </main>
+
+    <dialog id="settings-dialog" class="settings-dialog">
+      <form id="settings-form" method="dialog">
+        <div class="dialog-header"><div><span class="section-label">SEARCH CRITERIA</span><h2>調整找房條件</h2><p>儲存後會立即重算目前結果；要抓新房源再按「開始重新搜尋」。</p></div><button id="settings-close" class="icon-button" type="button" aria-label="關閉">×</button></div>
+
+        <section class="settings-block"><h3>搜尋區域與讀取數量</h3><div class="district-options">
+          <label><input type="checkbox" name="district" value="楠梓區">楠梓區</label><label><input type="checkbox" name="district" value="三民區">三民區</label><label><input type="checkbox" name="district" value="橋頭區">橋頭區</label><label><input type="checkbox" name="district" value="大社區">大社區</label>
+        </div><div class="form-grid compact"><label>中古屋最多讀取<input id="resale-details" type="number" min="1" max="50" required></label><label>預售屋最多讀取<input id="presale-details" type="number" min="1" max="50" required></label></div></section>
+
+        <section class="settings-profile condo-settings"><div class="profile-heading"><span>目標 01</span><h3>大樓・公寓・華廈</h3></div><div class="form-grid">
+          <label>總價上限（萬）<input id="condo-max-price" type="number" min="300" max="1200" required></label><label>理想總價（萬）<input id="condo-target-price" type="number" min="300" max="1200" required></label><label>最低主建物（坪）<input id="condo-min-area" type="number" min="1" max="100" step="0.1" required></label><label>最低房數<input id="condo-min-rooms" type="number" min="1" max="10" required></label><label>偏好至少幾衛<input id="condo-min-baths" type="number" min="1" max="10" required></label><label>偏好屋齡以下（年）<input id="condo-max-age" type="number" min="0" max="100" required></label>
+        </div><div class="switches"><label><input id="condo-flat-parking" type="checkbox">平面車位為必要條件</label><label><input id="condo-high-floor" type="checkbox">高樓層／頂樓加分</label></div></section>
+
+        <section class="settings-profile house-settings"><div class="profile-heading"><span>目標 02</span><h3>透天・車墅</h3></div><div class="form-grid">
+          <label>總價上限（萬）<input id="house-max-price" type="number" min="300" max="1200" required></label><label>理想總價（萬）<input id="house-target-price" type="number" min="300" max="1200" required></label><label>偏好屋齡以下（年）<input id="house-max-age" type="number" min="0" max="100" required></label>
+        </div><div class="switches"><label><input id="house-parking" type="checkbox">可停汽車為必要條件</label><label><input id="house-garden" type="checkbox">花園／庭院加分</label></div></section>
+
+        <section class="settings-profile presale-settings"><div class="profile-heading"><span>目標 03</span><h3>預售屋</h3></div><div class="form-grid">
+          <label>總價上限（萬）<input id="presale-max-price" type="number" min="300" max="1200" required></label><label>理想總價（萬）<input id="presale-target-price" type="number" min="300" max="1200" required></label><label>最低室內／主建（坪）<input id="presale-min-area" type="number" min="1" max="100" step="0.1" required></label><label>最低房數<input id="presale-min-rooms" type="number" min="1" max="10" required></label><label>偏好至少幾衛<input id="presale-min-baths" type="number" min="1" max="10" required></label>
+        </div><div class="switches"><label><input id="presale-flat-parking" type="checkbox">平面車位為必要條件</label></div></section>
+
+        <div id="settings-error" class="form-error" role="alert"></div>
+        <div class="dialog-actions"><button id="settings-cancel" class="secondary-button" type="button">取消</button><button id="settings-save" class="primary-button" type="submit">儲存並套用</button></div>
+      </form>
+    </dialog>
+    <noscript>這個頁面需要啟用 JavaScript 才能啟動搜尋與顯示結果。</noscript>
+  </body>
+</html>

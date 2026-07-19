@@ -1,0 +1,86 @@
+.goal-action-bar {
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.search-mode-control {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.search-mode-control select {
+  min-width: 220px;
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.badge.exact_match {
+  color: #174f34;
+  background: #cfe7d7;
+}
+
+.badge.acceptable {
+  color: #685314;
+  background: #eee4b8;
+}
+
+.ideal-gap-box,
+.variant-box {
+  margin: 14px 0;
+  padding: 13px 15px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+}
+
+.ideal-gap-box {
+  background: #f5eed5;
+  color: #685314;
+}
+
+.ideal-gap-box strong,
+.variant-box strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.ideal-gap-box ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.variant-box {
+  background: #e9efea;
+  color: #365545;
+}
+
+.variant-box div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.variant-box a {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.goal-insight small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .search-mode-control,
+  .search-mode-control select {
+    width: 100%;
+  }
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "demo-001",
+    "title": "板橋近捷運電梯兩房含車位",
+    "url": "https://example.com/listing/demo-001",
+    "city": "新北市",
+    "district": "板橋區",
+    "total_price_wan": 1680,
+    "area_ping": 28.5,
+    "rooms": 2,
+    "age_years": 12,
+    "floor": "8/15",
+    "address": "文化路",
+    "tags": ["近捷運", "電梯", "車位"],
+    "source": "demo"
+  },
+  {
+    "id": "demo-002",
+    "title": "新莊三房採光宅",
+    "url": "https://example.com/listing/demo-002",
+    "city": "新北市",
+    "district": "新莊區",
+    "total_price_wan": 1750,
+    "area_ping": 32,
+    "rooms": 3,
+    "age_years": 18,
+    "floor": "5/12",
+    "address": "中正路",
+    "tags": ["電梯"],
+    "source": "demo"
+  },
+  {
+    "id": "demo-003",
+    "title": "板橋低總價頂樓加蓋",
+    "url": "https://example.com/listing/demo-003",
+    "city": "新北市",
+    "district": "板橋區",
+    "total_price_wan": 980,
+    "area_ping": 20,
+    "rooms": 2,
+    "age_years": 42,
+    "floor": "5/5",
+    "tags": ["頂樓加蓋"],
+    "source": "demo"
+  }
+]

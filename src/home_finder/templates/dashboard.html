@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="依個人購屋條件搜尋高雄 591 房源">
+    <title>我的高雄找房雷達</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="eyebrow">KAOHSIUNG HOME RADAR</div>
+        <div class="hero-grid">
+          <div>
+            <h1>我的高雄找房雷達</h1>
+            <p class="intro">把符合條件的房子留在眼前，把廣告話術和缺資料的房源分開。</p>
+          </div>
+          <button id="search-button" class="search-button" type="button">
+            <span class="button-dot" aria-hidden="true"></span>
+            <span id="search-label">開始重新搜尋</span>
+          </button>
+        </div>
+        <div class="criteria" aria-label="主要找房條件">
+          <span>楠梓・三民・橋頭・大社</span>
+          <span>總價 ≤ 1,200 萬</span>
+          <span>主建物 ≥ 15 坪</span>
+          <span>至少 2 房</span>
+          <span>平面車位必要</span>
+        </div>
+      </header>
+
+      <section class="status-strip" aria-live="polite">
+        <div class="status-main">
+          <span id="status-light" class="status-light"></span>
+          <span id="status-message">正在讀取現有結果…</span>
+        </div>
+        <div id="updated-at" class="updated-at"></div>
+      </section>
+
+      <section id="summary" class="summary-grid" aria-label="搜尋統計">
+        <article class="summary-card total"><span>本次房源</span><strong id="count-total">—</strong></article>
+        <article class="summary-card qualified"><span>直接符合</span><strong id="count-qualified">—</strong></article>
+        <article class="summary-card pending"><span>需要確認</span><strong id="count-pending">—</strong></article>
+        <article class="summary-card rejected"><span>已排除</span><strong id="count-rejected">—</strong></article>
+      </section>
+
+      <nav class="tabs" aria-label="結果分類">
+        <button class="tab active" type="button" data-tab="qualified">直接符合 <span id="tab-qualified">0</span></button>
+        <button class="tab" type="button" data-tab="needs_verification">待確認 <span id="tab-pending">0</span></button>
+        <button class="tab" type="button" data-tab="rejected">排除原因 <span id="tab-rejected">0</span></button>
+      </nav>
+
+      <section id="results" class="results" aria-live="polite"></section>
+
+      <footer>
+        <p>只在你的電腦執行・同時間只跑一輪・請求間隔至少 2 秒</p>
+        <p>廣告資料可能變動，看屋前仍要確認謄本、平面車位權狀與實際格局。</p>
+      </footer>
+    </main>
+    <noscript>這個頁面需要啟用 JavaScript 才能啟動搜尋與顯示結果。</noscript>
+  </body>
+</html>

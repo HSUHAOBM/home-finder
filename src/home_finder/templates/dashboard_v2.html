@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="依三種購屋目標分開搜尋高雄 591 房源">
+    <title>我的高雄找房雷達</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard_v2.css') }}">
+    <script src="{{ url_for('static', filename='dashboard_v2.js') }}" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="eyebrow">KAOHSIUNG HOME RADAR</div>
+        <div class="hero-grid">
+          <div>
+            <h1>我的高雄找房雷達</h1>
+            <p class="intro">三種購屋目標分開整理，各看各的條件與候選房源。</p>
+          </div>
+          <button id="search-button" class="search-button" type="button">
+            <span class="button-dot" aria-hidden="true"></span>
+            <span id="search-label">開始重新搜尋</span>
+          </button>
+        </div>
+        <div class="criteria" aria-label="共通找房條件">
+          <span>楠梓・三民・橋頭・大社</span>
+          <span>總價 ≤ 1,200 萬</span>
+          <span>1,100 萬上下優先</span>
+          <span>個人低頻搜尋</span>
+        </div>
+      </header>
+
+      <section class="status-strip" aria-live="polite">
+        <div class="status-main">
+          <span id="status-light" class="status-light"></span>
+          <span id="status-message">正在讀取現有結果…</span>
+        </div>
+        <div id="updated-at" class="updated-at"></div>
+      </section>
+
+      <section class="goal-section" aria-labelledby="goal-picker-title">
+        <div class="section-label" id="goal-picker-title">選擇購屋目標</div>
+        <div class="goal-picker">
+          <button class="goal-card condo active" type="button" data-profile="大樓公寓華廈">
+            <span class="goal-number">目標 01</span>
+            <strong>大樓・公寓・華廈</strong>
+            <span class="goal-rule">平面車位・主建 ≥ 15 坪・至少 2 房</span>
+            <span class="goal-counts"><b data-count="qualified">0</b> 符合・<b data-count="pending">0</b> 待確認・<b data-count="rejected">0</b> 排除</span>
+          </button>
+          <button class="goal-card townhouse" type="button" data-profile="透天別墅">
+            <span class="goal-number">目標 02</span>
+            <strong>透天・車墅</strong>
+            <span class="goal-rule">可停汽車・屋齡 30 年內優先・花園加分</span>
+            <span class="goal-counts"><b data-count="qualified">0</b> 符合・<b data-count="pending">0</b> 待確認・<b data-count="rejected">0</b> 排除</span>
+          </button>
+          <button class="goal-card presale" type="button" data-profile="預售屋">
+            <span class="goal-number">目標 03</span>
+            <strong>預售屋</strong>
+            <span class="goal-rule">平面車位・室內 ≥ 15 坪・至少 2 房</span>
+            <span class="goal-counts"><b data-count="qualified">0</b> 符合・<b data-count="pending">0</b> 待確認・<b data-count="rejected">0</b> 排除</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="active-goal">
+        <div>
+          <span id="active-goal-number" class="section-label">目標 01</span>
+          <h2 id="active-goal-title">大樓・公寓・華廈</h2>
+          <p id="active-goal-description">必要：平面汽車位、主建物至少 15 坪、至少 2 房。高樓、頂樓、2 衛與屋齡 30 年內加分。</p>
+        </div>
+        <div id="active-goal-total" class="goal-total">0 筆房源</div>
+      </section>
+
+      <nav class="tabs" aria-label="目前目標的結果分類">
+        <button class="tab active" type="button" data-status="qualified">直接符合 <span id="tab-qualified">0</span></button>
+        <button class="tab" type="button" data-status="needs_verification">待確認 <span id="tab-pending">0</span></button>
+        <button class="tab" type="button" data-status="rejected">已排除 <span id="tab-rejected">0</span></button>
+      </nav>
+
+      <section id="results" class="results" aria-live="polite"></section>
+
+      <footer>
+        <p>只在你的電腦執行・同時間只跑一輪・請求間隔至少 2 秒</p>
+        <p>廣告資料可能變動，看屋前仍要確認謄本、平面車位權狀與實際格局。</p>
+      </footer>
+    </main>
+    <noscript>這個頁面需要啟用 JavaScript 才能啟動搜尋與顯示結果。</noscript>
+  </body>
+</html>

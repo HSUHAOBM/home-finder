@@ -1,0 +1,20 @@
+{
+  "source": {
+    "type": "591_sale_public_html",
+    "city": "新北市",
+    "region_id": 3,
+    "pages": 1,
+    "delay_seconds": 3
+  },
+  "preferences": {
+    "cities": ["新北市"],
+    "districts": ["板橋區", "新莊區"],
+    "max_total_price_wan": 1800,
+    "min_area_ping": 25,
+    "min_rooms": 2,
+    "max_age_years": 30,
+    "required_keywords": [],
+    "excluded_keywords": ["事故屋", "頂樓加蓋"],
+    "preferred_keywords": ["近捷運", "車位", "電梯"]
+  }
+}

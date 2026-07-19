@@ -1,0 +1,38 @@
+.form-grid select, .floor-ratio-label select {
+  height: 43px;
+  margin-top: 5px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.source-note {
+  margin: 14px 0 0;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: #eef2ed;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.floor-ratio-label { display: flex; align-items: center; gap: 8px; }
+.floor-ratio-label select { width: auto; margin-top: 0; }
+
+.tracking-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.lifecycle { padding: 3px 8px; border-radius: 999px; background: #e8e9e3; color: #4f5954; font-weight: 800; }
+.lifecycle.new { background: #dceadf; color: #245b43; }
+.lifecycle.updated { background: #dce6f0; color: #3d5e85; }
+.lifecycle.seen { background: #ece8dc; color: #6d644d; }
+.lifecycle.possibly_removed { background: var(--brick-soft); color: var(--brick); }

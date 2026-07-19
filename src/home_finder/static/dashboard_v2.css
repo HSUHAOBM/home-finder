@@ -1,0 +1,88 @@
+.goal-section { margin-top: 34px; }
+
+.section-label {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.goal-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.goal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 188px;
+  padding: 23px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 21px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(39, 52, 45, 0.035);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.goal-card::after {
+  content: "";
+  position: absolute;
+  right: -42px;
+  bottom: -50px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: var(--goal-soft);
+  opacity: 0.75;
+}
+
+.goal-card.condo { --goal: #245b43; --goal-soft: #dceadf; }
+.goal-card.townhouse { --goal: #8b5528; --goal-soft: #f0e0cc; }
+.goal-card.presale { --goal: #3d5e85; --goal-soft: #dce6f0; }
+
+.goal-card:hover { transform: translateY(-2px); border-color: var(--goal); }
+.goal-card.active { border-color: var(--goal); box-shadow: 0 0 0 2px var(--goal), 0 14px 30px rgba(39, 52, 45, 0.09); }
+.goal-card:focus-visible { outline: 3px solid var(--goal-soft); outline-offset: 3px; }
+.goal-number { color: var(--goal); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.11em; }
+.goal-card strong { position: relative; z-index: 1; margin-top: 7px; font-family: "Noto Serif TC", "PMingLiU", serif; font-size: 1.28rem; }
+.goal-rule { position: relative; z-index: 1; margin-top: 9px; color: var(--muted); font-size: 0.84rem; line-height: 1.5; }
+.goal-counts { position: relative; z-index: 1; margin-top: auto; padding-top: 18px; color: var(--muted); font-size: 0.78rem; }
+.goal-counts b { color: var(--goal); font-size: 1rem; }
+
+.active-goal {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-end;
+  margin-top: 42px;
+}
+
+.active-goal h2 {
+  margin: 3px 0 0;
+  font-family: "Noto Serif TC", "PMingLiU", serif;
+  font-size: clamp(1.55rem, 4vw, 2.2rem);
+}
+
+.active-goal p { max-width: 760px; margin: 8px 0 0; color: var(--muted); }
+.goal-total { flex: 0 0 auto; padding: 7px 13px; border-radius: 999px; background: #e8e9e3; color: #4f5954; font-size: 0.82rem; font-weight: 800; }
+
+.results .reason-panel .listing-title {
+  margin-top: 18px;
+  font-weight: 800;
+}
+
+.reason-group + .reason-group { margin-top: 25px; }
+
+@media (max-width: 850px) {
+  .goal-picker { grid-template-columns: 1fr; }
+  .goal-card { min-height: 154px; }
+  .active-goal { align-items: flex-start; flex-direction: column; gap: 12px; }
+}

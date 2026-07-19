@@ -1,0 +1,74 @@
+{
+  "source": {
+    "type": "591_browser",
+    "city": "高雄市",
+    "region_id": 17,
+    "districts": [
+      "楠梓區",
+      "三民區",
+      "橋頭區",
+      "大社區"
+    ],
+    "max_details": 50,
+    "delay_seconds": 2,
+    "headless": true,
+    "presale_max_details": 30,
+    "pages": 3,
+    "publish_days": 5
+  },
+  "requirements": {
+    "max_total_price_wan": 1200,
+    "target_total_price_wan": 1100,
+    "preferred_max_age_years": 30,
+    "profiles": [
+      "大樓公寓華廈",
+      "透天別墅",
+      "預售屋"
+    ],
+    "main_area_definition": "主建物坪數，不使用權狀總坪數替代"
+  },
+  "editable_criteria": {
+    "districts": [
+      "楠梓區",
+      "三民區",
+      "橋頭區",
+      "大社區"
+    ],
+    "search": {
+      "resale_details": 50,
+      "presale_details": 30,
+      "pages": 3,
+      "publish_days": 5
+    },
+    "profiles": {
+      "大樓公寓華廈": {
+        "max_price": 1200.0,
+        "target_price": 1100.0,
+        "min_main_area": 15.0,
+        "min_rooms": 2,
+        "preferred_min_baths": 2,
+        "preferred_max_age": 30.0,
+        "require_flat_parking": true,
+        "prefer_high_floor": true,
+        "require_high_floor": false,
+        "min_floor_ratio": 0.6666666666666666
+      },
+      "透天別墅": {
+        "max_price": 1200.0,
+        "target_price": 1100.0,
+        "preferred_max_age": 30.0,
+        "require_parking": true,
+        "prefer_garden": true
+      },
+      "預售屋": {
+        "max_price": 1200.0,
+        "target_price": 1100.0,
+        "min_main_area": 15.0,
+        "min_rooms": 2,
+        "preferred_min_baths": 2,
+        "preferred_max_age": 5.0,
+        "require_flat_parking": true
+      }
+    }
+  }
+}

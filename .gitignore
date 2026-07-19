@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.playwright-cli/
+
+# Personal and machine-local settings
+config.json
+config.user.json
+config.live.json
+
+# Generated search data
+output/
+data/cache/
+data/listing_history.json
+data/search_diagnostics.json
+data/listings*.json
+!data/sample_listings.json

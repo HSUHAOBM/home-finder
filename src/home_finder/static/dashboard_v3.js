@@ -1,0 +1,144 @@
+const PROFILE_META = {
+  "大樓公寓華廈": { number: "目標 01", title: "大樓・公寓・華廈" },
+  "透天別墅": { number: "目標 02", title: "透天・車墅" },
+  "預售屋": { number: "目標 03", title: "預售屋" },
+};
+
+const state = { activeProfile: "大樓公寓華廈", activeStatus: "qualified", payload: null, settings: null, lastFinishedAt: null };
+const $ = (selector) => document.querySelector(selector);
+const value = (id) => Number($(id).value);
+const checked = (id) => $(id).checked;
+
+function escapeHtml(input) {
+  return String(input ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+function number(input, suffix = "") {
+  if (input === null || input === undefined || input === "") return "待確認";
+  return `${Number(input).toLocaleString("zh-TW", { maximumFractionDigits: 3 })}${suffix}`;
+}
+function safeUrl(input) {
+  try { const url = new URL(input); return ["http:", "https:"].includes(url.protocol) ? url.href : "#"; } catch { return "#"; }
+}
+function profileItems(profile, status) {
+  return state.payload ? (state.payload.groups[status] || []).filter((item) => item.profile === profile) : [];
+}
+function profileCounts(profile) {
+  return { qualified: profileItems(profile, "qualified").length, pending: profileItems(profile, "needs_verification").length, rejected: profileItems(profile, "rejected").length };
+}
+function floorText(item) {
+  if (item.floor === null || item.floor === undefined) return "待確認";
+  return item.total_floors ? `${item.floor}/${item.total_floors} 樓` : `${item.floor} 樓`;
+}
+
+function goalRule(profile) {
+  if (!state.settings) return "正在讀取條件…";
+  const config = state.settings.profiles[profile];
+  if (profile === "透天別墅") return `${number(config.max_price)} 萬內・${config.require_parking ? "可停汽車必要" : "停車非必要"}・屋齡 ${number(config.preferred_max_age)} 年內優先`;
+  return `${number(config.max_price)} 萬內・主建 ≥ ${number(config.min_main_area)} 坪・至少 ${number(config.min_rooms)} 房・${config.require_flat_parking ? "平面車位必要" : "車位非必要"}`;
+}
+function goalDescription(profile) {
+  if (!state.settings) return "";
+  const config = state.settings.profiles[profile];
+  if (profile === "大樓公寓華廈") return `必要條件：總價不超過 ${number(config.max_price)} 萬、主建物至少 ${number(config.min_main_area)} 坪、至少 ${number(config.min_rooms)} 房${config.require_flat_parking ? "、平面車位" : ""}。理想總價 ${number(config.target_price)} 萬，偏好 ${number(config.preferred_min_baths)} 衛、屋齡 ${number(config.preferred_max_age)} 年內${config.prefer_high_floor ? "及高樓層" : ""}。`;
+  if (profile === "透天別墅") return `必要條件：總價不超過 ${number(config.max_price)} 萬${config.require_parking ? "且可停汽車" : ""}。理想總價 ${number(config.target_price)} 萬，偏好屋齡 ${number(config.preferred_max_age)} 年內${config.prefer_garden ? "，花園或庭院加分" : ""}。`;
+  return `必要條件：總價不超過 ${number(config.max_price)} 萬、室內／主建至少 ${number(config.min_main_area)} 坪、至少 ${number(config.min_rooms)} 房${config.require_flat_parking ? "、平面車位" : ""}。價格、主建物或戶別車位未公開時列待確認。`;
+}
+
+function noteItems(item) {
+  const notes = [];
+  item.strengths.slice(0, 2).forEach((text) => notes.push(`<li>${escapeHtml(text)}</li>`));
+  item.questions.slice(0, 3).forEach((text) => notes.push(`<li class="question">必問：${escapeHtml(text)}</li>`));
+  item.concerns.slice(0, 3).forEach((text) => notes.push(`<li class="concern">${escapeHtml(text)}</li>`));
+  if (item.duplicates.length) notes.push(`<li class="concern">疑似重複刊登：${escapeHtml(item.duplicates.join("、"))}</li>`);
+  return notes.join("");
+}
+
+function listingCard(item) {
+  const labels = { qualified: "直接符合", needs_verification: "待確認", rejected: "已排除" };
+  const price = item.price ? `${number(item.price)} 萬` : "總價待確認";
+  const failures = item.status === "rejected" ? `<div class="failure-box"><strong>排除原因</strong><ul>${(item.failures.length ? item.failures : ["未符合必要條件"]).map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul></div>` : "";
+  return `<article class="listing-card ${item.status === "rejected" ? "rejected-card" : ""}">
+    <div class="card-top"><span class="badge ${escapeHtml(item.status)}">${labels[item.status]}</span><span class="score">適合度 ${number(item.score)} 分</span></div>
+    <h2>${escapeHtml(item.title)}</h2><div class="price-row"><span class="price">${price}</span><span class="district">${escapeHtml(item.district)}</span></div>
+    <div class="facts"><div class="fact"><span>主建物</span><strong>${number(item.main_area, " 坪")}</strong></div><div class="fact"><span>格局</span><strong>${number(item.rooms, " 房")}・${number(item.baths, " 衛")}</strong></div><div class="fact"><span>樓層</span><strong>${floorText(item)}</strong></div><div class="fact"><span>屋齡</span><strong>${number(item.age, " 年")}</strong></div><div class="fact"><span>車位</span><strong>${escapeHtml(item.parking || "待確認")}</strong></div><div class="fact"><span>591 編號</span><strong>${escapeHtml(item.id)}</strong></div></div>
+    ${failures}<ul class="notes">${noteItems(item)}</ul><a class="listing-link" href="${safeUrl(item.url)}" target="_blank" rel="noopener noreferrer">開啟原始 591 房源</a></article>`;
+}
+function emptyState(title, text) { return `<div class="empty-state"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(text)}</p></div>`; }
+
+function renderResults() {
+  if (!state.payload) { $("#results").innerHTML = emptyState("正在讀取", "稍等一下，馬上整理結果。"); return; }
+  const items = profileItems(state.activeProfile, state.activeStatus);
+  if (!items.length) {
+    const text = state.activeStatus === "rejected" ? "目前沒有這個目標的排除房源。" : "可以查看同一目標的其他分類，或重新搜尋。";
+    $("#results").innerHTML = emptyState("目前沒有房源", text); return;
+  }
+  $("#results").innerHTML = items.map(listingCard).join("");
+}
+
+function renderNavigation() {
+  document.querySelectorAll(".goal-card").forEach((card) => {
+    const profile = card.dataset.profile; const counts = profileCounts(profile);
+    card.classList.toggle("active", profile === state.activeProfile);
+    card.querySelector("[data-goal-rule]").textContent = goalRule(profile);
+    card.querySelector('[data-count="qualified"]').textContent = counts.qualified;
+    card.querySelector('[data-count="pending"]').textContent = counts.pending;
+    card.querySelector('[data-count="rejected"]').textContent = counts.rejected;
+  });
+  const meta = PROFILE_META[state.activeProfile]; const counts = profileCounts(state.activeProfile);
+  $("#active-goal-number").textContent = meta.number; $("#active-goal-title").textContent = meta.title; $("#active-goal-description").textContent = goalDescription(state.activeProfile);
+  $("#active-goal-total").textContent = `${counts.qualified + counts.pending + counts.rejected} 筆房源`;
+  $("#tab-qualified").textContent = counts.qualified; $("#tab-pending").textContent = counts.pending; $("#tab-rejected").textContent = counts.rejected;
+  if (state.settings) $("#criteria-summary").innerHTML = state.settings.districts.map((district) => `<span>${escapeHtml(district)}</span>`).join("") + `<span>三種目標各自計算</span><span>條件可調整</span>`;
+}
+
+async function loadResults() {
+  const response = await fetch("/api/results", { cache: "no-store" }); const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "讀取結果失敗"); state.payload = payload;
+  $("#updated-at").textContent = payload.updated_at ? `結果更新：${new Date(payload.updated_at).toLocaleString("zh-TW")}` : "還沒有搜尋紀錄";
+}
+async function loadSettings() {
+  const response = await fetch("/api/settings", { cache: "no-store" }); const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "讀取條件失敗"); state.settings = payload;
+}
+
+function fillSettingsForm() {
+  const s = state.settings; document.querySelectorAll('input[name="district"]').forEach((input) => { input.checked = s.districts.includes(input.value); });
+  $("#resale-details").value = s.search.resale_details; $("#presale-details").value = s.search.presale_details;
+  const c = s.profiles["大樓公寓華廈"]; $("#condo-max-price").value = c.max_price; $("#condo-target-price").value = c.target_price; $("#condo-min-area").value = c.min_main_area; $("#condo-min-rooms").value = c.min_rooms; $("#condo-min-baths").value = c.preferred_min_baths; $("#condo-max-age").value = c.preferred_max_age; $("#condo-flat-parking").checked = c.require_flat_parking; $("#condo-high-floor").checked = c.prefer_high_floor;
+  const h = s.profiles["透天別墅"]; $("#house-max-price").value = h.max_price; $("#house-target-price").value = h.target_price; $("#house-max-age").value = h.preferred_max_age; $("#house-parking").checked = h.require_parking; $("#house-garden").checked = h.prefer_garden;
+  const p = s.profiles["預售屋"]; $("#presale-max-price").value = p.max_price; $("#presale-target-price").value = p.target_price; $("#presale-min-area").value = p.min_main_area; $("#presale-min-rooms").value = p.min_rooms; $("#presale-min-baths").value = p.preferred_min_baths; $("#presale-flat-parking").checked = p.require_flat_parking;
+  $("#settings-error").textContent = "";
+}
+
+function collectSettings() {
+  return { districts: [...document.querySelectorAll('input[name="district"]:checked')].map((input) => input.value), search: { resale_details: value("#resale-details"), presale_details: value("#presale-details") }, profiles: {
+    "大樓公寓華廈": { max_price: value("#condo-max-price"), target_price: value("#condo-target-price"), min_main_area: value("#condo-min-area"), min_rooms: value("#condo-min-rooms"), preferred_min_baths: value("#condo-min-baths"), preferred_max_age: value("#condo-max-age"), require_flat_parking: checked("#condo-flat-parking"), prefer_high_floor: checked("#condo-high-floor") },
+    "透天別墅": { max_price: value("#house-max-price"), target_price: value("#house-target-price"), preferred_max_age: value("#house-max-age"), require_parking: checked("#house-parking"), prefer_garden: checked("#house-garden") },
+    "預售屋": { max_price: value("#presale-max-price"), target_price: value("#presale-target-price"), min_main_area: value("#presale-min-area"), min_rooms: value("#presale-min-rooms"), preferred_min_baths: value("#presale-min-baths"), preferred_max_age: 5, require_flat_parking: checked("#presale-flat-parking") },
+  }};
+}
+
+async function saveSettings(event) {
+  event.preventDefault(); const button = $("#settings-save"); button.disabled = true; $("#settings-error").textContent = "";
+  try {
+    const response = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(collectSettings()) }); const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "儲存失敗"); state.settings = payload.settings; state.payload = payload.results; renderNavigation(); renderResults(); $("#settings-dialog").close(); $("#status-message").textContent = "條件已儲存，並套用到目前結果";
+  } catch (error) { $("#settings-error").textContent = error.message; } finally { button.disabled = false; }
+}
+
+function renderStatus(status) {
+  const button = $("#search-button"); const light = $("#status-light"); button.disabled = status.running; button.classList.toggle("running", status.running); $("#settings-button").disabled = status.running;
+  $("#search-label").textContent = status.running ? "搜尋進行中" : "開始重新搜尋"; $("#status-message").textContent = status.error ? `${status.message}：${status.error}` : status.message; light.className = `status-light ${status.running ? "running" : status.phase}`;
+}
+async function pollStatus() {
+  try { const response = await fetch("/api/status", { cache: "no-store" }); const status = await response.json(); renderStatus(status); if (!status.running && status.finished_at && status.finished_at !== state.lastFinishedAt) { state.lastFinishedAt = status.finished_at; await loadResults(); renderNavigation(); renderResults(); } } catch { $("#status-message").textContent = "暫時無法連接本機介面"; }
+}
+async function startSearch() {
+  $("#search-button").disabled = true; try { const response = await fetch("/api/search", { method: "POST" }); renderStatus(await response.json()); } catch (error) { $("#status-message").textContent = `無法開始：${error.message}`; $("#search-button").disabled = false; }
+}
+
+$("#search-button").addEventListener("click", startSearch); $("#settings-button").addEventListener("click", () => { fillSettingsForm(); $("#settings-dialog").showModal(); }); $("#settings-close").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-cancel").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-form").addEventListener("submit", saveSettings);
+document.querySelectorAll(".goal-card").forEach((card) => card.addEventListener("click", () => { state.activeProfile = card.dataset.profile; renderNavigation(); renderResults(); }));
+document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => { document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active")); tab.classList.add("active"); state.activeStatus = tab.dataset.status; renderResults(); }));
+
+(async function init() { try { await Promise.all([loadSettings(), loadResults()]); renderNavigation(); renderResults(); await pollStatus(); setInterval(pollStatus, 1800); } catch (error) { $("#results").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`; } }());

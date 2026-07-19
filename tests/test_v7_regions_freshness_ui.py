@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+import json
+import os
+import time
+
+from home_finder import web_app_v7
+from home_finder.user_models import HomeListing
+
+
+def listing(external_id: str = "A", **changes) -> HomeListing:
+    values = dict(
+        source="591中古屋",
+        external_id=external_id,
+        title="測試房源",
+        url=f"https://example.com/{external_id}",
+        city="高雄市",
+        district="楠梓區",
+        total_price_wan=1000,
+        property_type="電梯大樓",
+        main_area_ping=18,
+        rooms=2,
+        baths=2,
+        age_years=5,
+        current_floor=10,
+        total_floors=15,
+        parking_type="平面式",
+        has_parking=True,
+        search_profile="大樓公寓華廈",
+    )
+    values.update(changes)
+    return HomeListing(**values)
+
+
+def test_all_kaohsiung_districts_have_presale_ids():
+    assert len(web_app_v7.ALL_DISTRICTS) == 38
+    assert set(web_app_v7.ALL_DISTRICTS) == set(web_app_v7.SECTION_IDS)
+    assert web_app_v7.SECTION_IDS["那瑪夏區"] == 280
+
+
+def test_settings_accepts_a_new_kaohsiung_district():
+    settings = web_app_v7.load_settings()
+    settings["districts"] = ["鳳山區", "仁武區"]
+
+    validated = web_app_v7.previous.previous.validate_settings(settings)
+
+    assert validated["districts"] == ["鳳山區", "仁武區"]
+
+
+def test_rejected_cards_have_no_misleading_score():
+    payload = web_app_v7.load_dashboard_payload()
+    card = payload["groups"]["rejected"][0]
+
+    assert card["metric_label"] == "未通過必要條件"
+    assert card["metric_value"] is None
+
+
+def test_stale_cache_is_ignored(tmp_path):
+    cache = tmp_path / "cache.json"
+    cache.write_text(json.dumps({"A": listing().to_dict()}), encoding="utf-8")
+    old = time.time() - web_app_v7.CACHE_TTL_SECONDS - 10
+    os.utime(cache, (old, old))
+    crawler = web_app_v7.TimedResaleCrawler(
+        profile="大樓公寓華廈",
+        districts=["楠梓區"],
+        cache_path=cache,
+        max_pages=3,
+    )
+
+    assert crawler._load_cache() == {}
+    assert crawler.cache_expired is True
+
+
+def test_two_missing_full_scans_archive_listing(tmp_path, monkeypatch):
+    history = tmp_path / "history.json"
+    history.write_text(
+        json.dumps({"A": {"search_profile": "大樓公寓華廈"}}), encoding="utf-8"
+    )
+    monkeypatch.setattr(web_app_v7, "HISTORY_PATH", history)
+
+    first, archived_first = web_app_v7._full_scan_merge(
+        [listing()], [], "大樓公寓華廈"
+    )
+    second, archived_second = web_app_v7._full_scan_merge(
+        first, [], "大樓公寓華廈"
+    )
+
+    assert len(first) == 1
+    assert first[0].lifecycle_status == "possibly_removed"
+    assert archived_first == 0
+    assert second == []
+    assert archived_second == 1
+
+
+def test_v7_page_loads_region_and_filter_controls():
+    page = web_app_v7.app.test_client().get("/").get_data(as_text=True)
+
+    assert "dashboard_v7.js" in page
+    assert "dashboard_v7.css" in page

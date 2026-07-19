@@ -1,0 +1,51 @@
+.hero-actions { display: flex; flex-direction: column; gap: 9px; }
+.settings-button, .secondary-button, .primary-button { min-height: 46px; padding: 0 18px; border-radius: 999px; cursor: pointer; font-weight: 800; }
+.settings-button, .secondary-button { border: 1px solid var(--green); background: transparent; color: var(--green); }
+.primary-button { border: 0; background: var(--green); color: white; }
+.settings-button:hover, .secondary-button:hover { background: var(--green-soft); }
+.settings-button:focus-visible, .secondary-button:focus-visible, .primary-button:focus-visible { outline: 3px solid #a9cdb5; outline-offset: 3px; }
+
+.rejected-card { border-color: #dfc6bf; }
+.rejected-card .price { color: var(--brick); }
+.badge.rejected { color: var(--brick); background: var(--brick-soft); }
+.failure-box { margin: 14px 0 18px; padding: 13px 15px; border-radius: 12px; background: var(--brick-soft); color: #74392f; font-size: 0.86rem; }
+.failure-box strong { display: block; margin-bottom: 4px; }
+.failure-box ul { margin: 0; padding-left: 18px; }
+
+.settings-dialog { width: min(920px, calc(100% - 24px)); max-height: calc(100vh - 30px); padding: 0; border: 0; border-radius: 24px; background: var(--paper); color: var(--ink); box-shadow: 0 30px 80px rgba(18, 31, 24, 0.3); }
+.settings-dialog::backdrop { background: rgba(19, 31, 25, 0.58); backdrop-filter: blur(4px); }
+.settings-dialog form { padding: 30px; }
+.dialog-header { display: flex; justify-content: space-between; gap: 24px; }
+.dialog-header h2 { margin: 3px 0 0; font-family: "Noto Serif TC", serif; font-size: 2rem; }
+.dialog-header p { margin: 6px 0 0; color: var(--muted); }
+.icon-button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 1.6rem; line-height: 1; }
+
+.settings-block, .settings-profile { margin-top: 22px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.settings-block h3, .profile-heading h3 { margin: 0; font-family: "Noto Serif TC", serif; font-size: 1.2rem; }
+.profile-heading span { color: var(--muted); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.1em; }
+.condo-settings { border-top: 4px solid #245b43; }
+.house-settings { border-top: 4px solid #8b5528; }
+.presale-settings { border-top: 4px solid #3d5e85; }
+.district-options, .switches { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 14px; }
+.district-options label, .switches label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.district-options input, .switches input { width: 18px; height: 18px; accent-color: var(--green); }
+.form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+.form-grid.compact { grid-template-columns: repeat(2, minmax(0, 220px)); }
+.form-grid label { color: var(--muted); font-size: 0.82rem; font-weight: 700; }
+.form-grid input { width: 100%; height: 43px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); font: inherit; }
+.form-grid input:focus { outline: 2px solid #9fc5aa; border-color: var(--green); }
+.dialog-actions { position: sticky; bottom: -30px; display: flex; justify-content: flex-end; gap: 10px; margin: 24px -30px -30px; padding: 16px 30px; border-top: 1px solid var(--line); background: rgba(244, 242, 235, 0.96); }
+.form-error { min-height: 24px; margin-top: 14px; color: var(--brick); font-weight: 700; }
+
+@media (max-width: 800px) {
+  .hero-actions { width: 100%; }
+  .settings-button { width: 100%; }
+  .settings-dialog form { padding: 20px; }
+  .form-grid, .form-grid.compact { grid-template-columns: 1fr 1fr; }
+  .dialog-actions { bottom: -20px; margin: 20px -20px -20px; padding: 13px 20px; }
+}
+
+@media (max-width: 520px) {
+  .form-grid, .form-grid.compact { grid-template-columns: 1fr; }
+  .settings-block, .settings-profile { padding: 17px; }
+}
