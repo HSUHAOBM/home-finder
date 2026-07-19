@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 import json
 import re
 import time
@@ -173,8 +174,9 @@ class Browser591PresaleCrawler:
         candidates: list[HomeListing] = []
         seen: set[str] = set()
         cache = self._load_cache()
-        with sync_playwright() as p:
+        with sync_playwright() as p, ExitStack() as cleanup:
             browser = self._launch(p)
+            cleanup.callback(lambda: browser.is_connected() and browser.close())
             context = browser.new_context(locale="zh-TW")
             list_page = context.new_page()
             for index, district in enumerate(self.districts):

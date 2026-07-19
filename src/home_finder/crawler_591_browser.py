@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 import json
 import re
 import time
@@ -184,8 +185,9 @@ class Browser591Crawler:
 
     def fetch(self) -> list[HomeListing]:
         cache = self._load_cache()
-        with sync_playwright() as p:
+        with sync_playwright() as p, ExitStack() as cleanup:
             browser = self._launch(p)
+            cleanup.callback(lambda: browser.is_connected() and browser.close())
             context = browser.new_context(
                 user_agent="home-finder/0.1 personal-use low-frequency",
                 locale="zh-TW",

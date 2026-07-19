@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlencode, urljoin
@@ -119,8 +120,9 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         cache = self._load_cache()
         candidates: list[HomeListing] = []
         seen: set[str] = set()
-        with sync_playwright() as playwright:
+        with sync_playwright() as playwright, ExitStack() as cleanup:
             browser = self._launch(playwright)
+            cleanup.callback(lambda: browser.is_connected() and browser.close())
             context = browser.new_context(locale="zh-TW")
             list_page = context.new_page()
             query = {"regionid": 17, "firstRow": 0, "shType": "list"}
