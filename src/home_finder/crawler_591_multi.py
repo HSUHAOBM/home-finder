@@ -6,7 +6,12 @@ from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlencode, urljoin
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
+from playwright.sync_api import (
+    BrowserContext,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+    sync_playwright,
+)
 
 from .crawler_591_browser import parse_detail_text, parse_list_card
 from .crawler_591_browser_v3 import Browser591Crawler
@@ -22,6 +27,7 @@ PROFILE_TYPES = {
     "透天別墅": {"透天厝", "別墅"},
 }
 UPDATE_TEXT = re.compile(r"(?:剛剛|\d+\s*(?:分鐘|小時|天)前|今天|昨日|昨天)\s*更新")
+MAX_DISTRICTS_PER_SEARCH = 5
 
 
 class MultiPage591ResaleCrawler(Browser591Crawler):
@@ -116,15 +122,28 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             listing_updated_text=current.listing_updated_text,
         )
 
-    def fetch(self) -> list[HomeListing]:
-        cache = self._load_cache()
-        candidates: list[HomeListing] = []
-        seen: set[str] = set()
-        with sync_playwright() as playwright, ExitStack() as cleanup:
-            browser = self._launch(playwright)
-            cleanup.callback(lambda: browser.is_connected() and browser.close())
-            context = browser.new_context(locale="zh-TW")
-            list_page = context.new_page()
+    def _district_batches(self) -> list[list[str]]:
+        batch_count = max(
+            1,
+            (len(self.districts) + MAX_DISTRICTS_PER_SEARCH - 1)
+            // MAX_DISTRICTS_PER_SEARCH,
+        )
+        batch_size, larger_batches = divmod(len(self.districts), batch_count)
+        batches: list[list[str]] = []
+        offset = 0
+        for index in range(batch_count):
+            size = batch_size + (1 if index < larger_batches else 0)
+            batches.append(self.districts[offset : offset + size])
+            offset += size
+        return batches
+
+    def _fetch_batch_candidates(
+        self, context: BrowserContext, districts: list[str]
+    ) -> list[HomeListing]:
+        original_districts = self.districts
+        self.districts = districts
+        list_page = context.new_page()
+        try:
             query = {"regionid": 17, "firstRow": 0, "shType": "list"}
             if self.publish_days:
                 query["publish_day"] = self.publish_days
@@ -136,16 +155,23 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             self._select_districts(list_page)
             self._select_shapes(list_page)
 
+            candidates: list[HomeListing] = []
+            seen: set[str] = set()
             for page_number in range(1, self.max_pages + 1):
                 if page_number > 1:
                     next_link = list_page.get_by_role("link", name="下一頁", exact=True)
                     if not next_link.count():
                         break
-                    next_url = urljoin("https://sale.591.com.tw", next_link.first.get_attribute("href") or "")
+                    next_url = urljoin(
+                        "https://sale.591.com.tw",
+                        next_link.first.get_attribute("href") or "",
+                    )
                     if not next_url:
                         break
                     self.sleep(self.delay_seconds)
-                    list_page.goto(next_url, wait_until="domcontentloaded", timeout=30000)
+                    list_page.goto(
+                        next_url, wait_until="domcontentloaded", timeout=30000
+                    )
                     list_page.wait_for_timeout(1800)
                 page_listings = self._read_profile_cards(list_page)
                 if not page_listings:
@@ -154,6 +180,36 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                     if listing.external_id not in seen:
                         seen.add(listing.external_id)
                         candidates.append(listing)
+            return candidates
+        finally:
+            self.districts = original_districts
+            list_page.close()
+
+    def _collect_candidates(self, context: BrowserContext) -> list[HomeListing]:
+        batch_candidates = [
+            self._fetch_batch_candidates(context, districts)
+            for districts in self._district_batches()
+        ]
+        candidates: list[HomeListing] = []
+        seen: set[str] = set()
+        max_batch_size = max((len(batch) for batch in batch_candidates), default=0)
+        for item_index in range(max_batch_size):
+            for batch in batch_candidates:
+                if item_index >= len(batch):
+                    continue
+                listing = batch[item_index]
+                if listing.external_id not in seen:
+                    seen.add(listing.external_id)
+                    candidates.append(listing)
+        return candidates
+
+    def fetch(self) -> list[HomeListing]:
+        cache = self._load_cache()
+        with sync_playwright() as playwright, ExitStack() as cleanup:
+            browser = self._launch(playwright)
+            cleanup.callback(lambda: browser.is_connected() and browser.close())
+            context = browser.new_context(locale="zh-TW")
+            candidates = self._collect_candidates(context)
 
             detailed: list[HomeListing] = []
             detail_page = context.new_page()

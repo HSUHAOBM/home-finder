@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import threading
 import webbrowser
 from collections import Counter, defaultdict
@@ -32,6 +33,7 @@ _state: dict[str, Any] = {
     "started_at": None,
     "finished_at": None,
     "error": None,
+    "service_instance": datetime.now(timezone.utc).isoformat(),
 }
 
 
@@ -246,17 +248,36 @@ def api_search():
     return jsonify(snapshot), 202
 
 
+def _reload_extra_files() -> list[str]:
+    watched: list[str] = []
+    for folder_name in ("templates", "static"):
+        folder = Path(__file__).with_name(folder_name)
+        if folder.exists():
+            watched.extend(str(path) for path in folder.rglob("*") if path.is_file())
+    return watched
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="開啟高雄個人找房介面")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
     url = f"http://127.0.0.1:{args.port}"
-    if not args.no_browser:
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if not args.no_browser and (not args.reload or not is_reloader_child):
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     print(f"找房介面：{url}")
-    print("關閉視窗即可停止；搜尋進行中請勿關閉。")
-    app.run(host="127.0.0.1", port=args.port, debug=False, use_reloader=False)
+    if args.reload:
+        print("自動重載已啟用；程式或頁面檔案變更後會自動重新啟動服務。")
+    print("按 Ctrl+C 或關閉這個命令視窗即可停止；搜尋進行中請勿關閉。")
+    app.run(
+        host="127.0.0.1",
+        port=args.port,
+        debug=False,
+        use_reloader=args.reload,
+        extra_files=_reload_extra_files() if args.reload else None,
+    )
 
 
 if __name__ == "__main__":

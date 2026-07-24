@@ -25,6 +25,10 @@ from .result_store import (
     read_result_document,
     result_document_is_current,
 )
+from .settings_history import (
+    load_settings_history,
+    record_settings_snapshot,
+)
 from .storage import atomic_write_json
 from .user_models import HomeListing
 from .user_ranking_v6 import evaluate_all
@@ -33,6 +37,8 @@ from .user_ranking_v6 import evaluate_all
 CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
 DIAGNOSTICS_PATH = base.BASE_DIR / "data" / "search_diagnostics.json"
 HISTORY_PATH = base.BASE_DIR / "data" / "listing_history.json"
+SEARCH_HISTORY_PATH = base.BASE_DIR / "data" / "search_history.json"
+SETTINGS_HISTORY_PATH = base.BASE_DIR / "data" / "settings_history.json"
 _result_upgrade_lock = threading.Lock()
 
 editable_settings.ALLOWED_DISTRICTS = set(ALL_DISTRICTS)
@@ -74,6 +80,71 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     atomic_write_json(path, payload)
+
+def _load_search_history() -> list[dict[str, Any]]:
+    if not SEARCH_HISTORY_PATH.exists():
+        return []
+    try:
+        payload = json.loads(SEARCH_HISTORY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, list):
+        return []
+    return [event for event in payload if isinstance(event, dict)]
+
+
+def _record_successful_crawl(
+    profile: str, mode: str, diagnostics: dict[str, Any]
+) -> dict[str, Any]:
+    event = {
+        "finished_at": base._iso_now(),
+        "profile": profile,
+        "mode": mode,
+        "fetched": int(diagnostics.get("fetched", 0)),
+        "duration_seconds": diagnostics.get("duration_seconds"),
+        "district_count": diagnostics.get("district_count"),
+    }
+    history = _load_search_history()
+    history.append(event)
+    atomic_write_json(SEARCH_HISTORY_PATH, history)
+    return event
+
+
+def _successful_crawl_summary(
+    diagnostics: dict[str, Any],
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any] | None]:
+    by_profile: dict[str, dict[str, Any]] = {}
+    for event in _load_search_history():
+        profile = event.get("profile")
+        finished_at = event.get("finished_at")
+        if not isinstance(profile, str) or not isinstance(finished_at, str):
+            continue
+        previous_event = by_profile.get(profile)
+        if previous_event is None or finished_at > previous_event["finished_at"]:
+            by_profile[profile] = event
+
+    # Existing installations already have one successful timestamp per profile
+    # in diagnostics. Use it until that profile completes its next recorded run.
+    for profile, diagnostic in diagnostics.items():
+        if profile in by_profile or not isinstance(diagnostic, dict):
+            continue
+        finished_at = diagnostic.get("finished_at")
+        if not isinstance(finished_at, str):
+            continue
+        by_profile[profile] = {
+            "finished_at": finished_at,
+            "profile": profile,
+            "mode": diagnostic.get("mode"),
+            "fetched": diagnostic.get("fetched", 0),
+            "duration_seconds": diagnostic.get("duration_seconds"),
+            "district_count": diagnostic.get("district_count"),
+            "legacy_diagnostic": True,
+        }
+
+    latest = max(
+        by_profile.values(), key=lambda event: event["finished_at"], default=None
+    )
+    return by_profile, latest
 
 
 def _data_completeness(card: dict[str, Any]) -> int:
@@ -131,7 +202,12 @@ def _add_display_metrics(payload: dict[str, Any]) -> dict[str, Any]:
                 card["metric_label"] = "未通過必要條件"
                 card["metric_value"] = None
     payload["district_groups"] = DISTRICT_GROUPS
-    payload["search_diagnostics"] = _load_json(DIAGNOSTICS_PATH)
+    diagnostics = _load_json(DIAGNOSTICS_PATH)
+    successful_by_profile, latest_success = _successful_crawl_summary(diagnostics)
+    payload["search_diagnostics"] = diagnostics
+    payload["successful_crawls_by_profile"] = successful_by_profile
+    payload["last_successful_crawl"] = latest_success
+    payload["crawl_history"] = _load_search_history()
     return payload
 
 
@@ -328,6 +404,7 @@ def _run_search(profile: str, mode: str) -> None:
         all_diagnostics = _load_json(DIAGNOSTICS_PATH)
         all_diagnostics[profile] = diagnostics
         _write_json(DIAGNOSTICS_PATH, all_diagnostics)
+        _record_successful_crawl(profile, mode, diagnostics)
 
         insight = build_dashboard_payload(records)["profile_insights"][profile]
         status_note = (
@@ -387,14 +464,32 @@ def api_results_v7():
         ), 500
 
 
+@app.get("/api/settings/history")
+def api_settings_history_v7():
+    history = load_settings_history(SETTINGS_HISTORY_PATH)
+    return jsonify({"history": list(reversed(history))})
+
+
 def api_settings_post_v7():
     if base._state_snapshot()["running"]:
         return jsonify({"error": "搜尋進行中，完成後才能調整條件"}), 409
     try:
+        current_settings = load_settings()
         settings = previous.previous.validate_settings(request.get_json(silent=True) or {})
+        record_settings_snapshot(
+            SETTINGS_HISTORY_PATH, current_settings, base._iso_now()
+        )
         previous.previous.save_settings(settings)
+        record_settings_snapshot(SETTINGS_HISTORY_PATH, settings, base._iso_now())
         previous.re_evaluate_existing(settings)
-        return jsonify({"settings": settings, "results": load_dashboard_payload()})
+        history = load_settings_history(SETTINGS_HISTORY_PATH)
+        return jsonify(
+            {
+                "settings": settings,
+                "results": load_dashboard_payload(),
+                "history": list(reversed(history)),
+            }
+        )
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         return jsonify({"error": str(exc)}), 400
 

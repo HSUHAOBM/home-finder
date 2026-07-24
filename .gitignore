@@ -13,6 +13,8 @@ config.live.json
 output/
 data/cache/
 data/listing_history.json
+data/search_history.json
+data/settings_history.json
 data/search_diagnostics.json
 data/listings*.json
 !data/sample_listings.json

@@ -4,7 +4,7 @@ const PROFILE_META = {
   "預售屋": { number: "目標 03", title: "預售屋" },
 };
 
-const state = { activeProfile: "大樓公寓華廈", activeStatus: "qualified", payload: null, settings: null, lastFinishedAt: null };
+const state = { activeProfile: "大樓公寓華廈", activeStatus: "qualified", payload: null, settings: null, settingsHistory: [], lastFinishedAt: null, statusPollTimer: null, searchRunning: false, serviceInstance: null };
 const $ = (selector) => document.querySelector(selector);
 const value = (id) => Number($(id).value);
 const checked = (id) => $(id).checked;
@@ -109,7 +109,14 @@ async function loadResults() {
   const response = await fetch("/api/results", { cache: "no-store" });
   const payload = await readJsonResponse(response, "讀取結果失敗");
   state.payload = payload;
-  $("#updated-at").textContent = payload.updated_at ? `結果更新：${new Date(payload.updated_at).toLocaleString("zh-TW")}` : "還沒有搜尋紀錄";
+  const successfulCrawl = payload.last_successful_crawl;
+  const mode = successfulCrawl && successfulCrawl.mode === "full" ? "完整盤點" : "每日更新";
+  $("#updated-at").textContent = successfulCrawl
+    ? `最近成功爬蟲：${new Date(successfulCrawl.finished_at).toLocaleString("zh-TW")}・${successfulCrawl.profile}・${mode}・${successfulCrawl.fetched} 筆`
+    : "還沒有成功爬蟲紀錄";
+  $("#updated-at").title = payload.updated_at
+    ? `結果檔更新：${new Date(payload.updated_at).toLocaleString("zh-TW")}`
+    : "還沒有結果檔";
 }
 async function loadSettings() {
   const response = await fetch("/api/settings", { cache: "no-store" });
@@ -117,8 +124,33 @@ async function loadSettings() {
   state.settings = payload;
 }
 
-function fillSettingsForm() {
-  const s = state.settings; document.querySelectorAll('input[name="district"]').forEach((input) => { input.checked = s.districts.includes(input.value); });
+function settingsHistoryLabel(entry) {
+  const settings = entry.settings;
+  const savedAt = new Date(entry.saved_at).toLocaleString("zh-TW");
+  return `${savedAt}｜${settings.districts.length} 區｜大樓上限 ${settings.profiles["大樓公寓華廈"].max_price} 萬`;
+}
+
+function renderSettingsHistory() {
+  const select = $("#settings-history-select");
+  const button = $("#settings-history-load");
+  if (!select || !button) return;
+  select.innerHTML = '<option value="">選擇過去儲存的條件</option>' + state.settingsHistory.map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(settingsHistoryLabel(entry))}</option>`).join("");
+  button.disabled = state.settingsHistory.length === 0;
+  $("#settings-history-help").textContent = state.settingsHistory.length
+    ? `已保存 ${state.settingsHistory.length} 個版本；載入後請檢查，再按「儲存並套用」。`
+    : "尚無歷史版本；下一次儲存時會同時保留修改前與修改後條件。";
+}
+
+async function loadSettingsHistory() {
+  const response = await fetch("/api/settings/history", { cache: "no-store" });
+  const payload = await readJsonResponse(response, "讀取條件歷史失敗");
+  state.settingsHistory = payload.history || [];
+  renderSettingsHistory();
+}
+
+
+function fillSettingsForm(settings = state.settings) {
+  const s = settings; document.querySelectorAll('input[name="district"]').forEach((input) => { input.checked = s.districts.includes(input.value); });
   $("#resale-details").value = s.search.resale_details; $("#presale-details").value = s.search.presale_details;
   const c = s.profiles["大樓公寓華廈"]; $("#condo-max-price").value = c.max_price; $("#condo-target-price").value = c.target_price; $("#condo-min-area").value = c.min_main_area; $("#condo-min-rooms").value = c.min_rooms; $("#condo-min-baths").value = c.preferred_min_baths; $("#condo-max-age").value = c.preferred_max_age; $("#condo-flat-parking").checked = c.require_flat_parking; $("#condo-high-floor").checked = c.prefer_high_floor;
   const h = s.profiles["透天別墅"]; $("#house-max-price").value = h.max_price; $("#house-target-price").value = h.target_price; $("#house-max-age").value = h.preferred_max_age; $("#house-parking").checked = h.require_parking; $("#house-garden").checked = h.prefer_garden;
@@ -139,23 +171,56 @@ async function saveSettings(event) {
   try {
     const response = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(collectSettings()) });
     const payload = await readJsonResponse(response, "儲存失敗");
-    state.settings = payload.settings; state.payload = payload.results; renderNavigation(); renderResults(); $("#settings-dialog").close(); $("#status-message").textContent = "條件已儲存，並套用到目前結果";
+    state.settings = payload.settings; state.settingsHistory = payload.history || state.settingsHistory; state.payload = payload.results; renderSettingsHistory(); renderNavigation(); renderResults(); $("#settings-dialog").close(); $("#status-message").textContent = "條件已儲存為新版本，並套用到目前結果";
   } catch (error) { $("#settings-error").textContent = error.message; } finally { button.disabled = false; }
 }
 
+function stopStatusPolling() {
+  if (state.statusPollTimer !== null) clearTimeout(state.statusPollTimer);
+  state.statusPollTimer = null;
+}
+
+function scheduleStatusPoll(delay = 2500) {
+  stopStatusPolling();
+  if (document.hidden || !state.searchRunning) return;
+  state.statusPollTimer = setTimeout(() => {
+    state.statusPollTimer = null;
+    pollStatus();
+  }, delay);
+}
+
 function renderStatus(status) {
+  state.searchRunning = Boolean(status.running);
   const button = $("#search-button"); const light = $("#status-light"); button.disabled = status.running; button.classList.toggle("running", status.running); $("#settings-button").disabled = status.running;
   $("#search-label").textContent = status.running ? "搜尋進行中" : "開始重新搜尋"; $("#status-message").textContent = status.error ? `${status.message}：${status.error}` : status.message; light.className = `status-light ${status.running ? "running" : status.phase}`;
+  if (state.searchRunning) scheduleStatusPoll(); else stopStatusPolling();
 }
 async function pollStatus() {
-  try { const response = await fetch("/api/status", { cache: "no-store" }); const status = await readJsonResponse(response, "讀取狀態失敗"); renderStatus(status); if (!status.running && status.finished_at && status.finished_at !== state.lastFinishedAt) { state.lastFinishedAt = status.finished_at; await loadResults(); renderNavigation(); renderResults(); } } catch (error) { $("#status-message").textContent = error.message.includes("本機服務版本") ? error.message : "暫時無法連接本機介面"; }
+  try {
+    const response = await fetch("/api/status", { cache: "no-store" }); const status = await readJsonResponse(response, "讀取狀態失敗");
+    if (state.serviceInstance && status.service_instance && status.service_instance !== state.serviceInstance) {
+      window.location.reload(); return;
+    }
+    if (status.service_instance) state.serviceInstance = status.service_instance;
+    renderStatus(status);
+    if (!status.running && status.finished_at && status.finished_at !== state.lastFinishedAt) { state.lastFinishedAt = status.finished_at; await loadResults(); renderNavigation(); renderResults(); }
+  } catch (error) { $("#status-message").textContent = error.message.includes("本機服務版本") ? error.message : "暫時無法連接本機介面"; if (state.searchRunning) scheduleStatusPoll(5000); }
 }
 async function startSearch() {
   $("#search-button").disabled = true; try { const response = await fetch("/api/search", { method: "POST" }); renderStatus(await readJsonResponse(response, "開始搜尋失敗")); } catch (error) { $("#status-message").textContent = `無法開始：${error.message}`; $("#search-button").disabled = false; }
 }
 
-$("#search-button").addEventListener("click", startSearch); $("#settings-button").addEventListener("click", () => { fillSettingsForm(); $("#settings-dialog").showModal(); }); $("#settings-close").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-cancel").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-form").addEventListener("submit", saveSettings);
+$("#search-button").addEventListener("click", startSearch); $("#settings-button").addEventListener("click", () => { fillSettingsForm(); renderSettingsHistory(); $("#settings-dialog").showModal(); }); $("#settings-close").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-cancel").addEventListener("click", () => $("#settings-dialog").close()); $("#settings-form").addEventListener("submit", saveSettings);
+$("#settings-history-load").addEventListener("click", () => {
+  const entry = state.settingsHistory.find((item) => item.id === $("#settings-history-select").value);
+  if (!entry) { $("#settings-error").textContent = "請先選擇一個歷史版本"; return; }
+  fillSettingsForm(entry.settings);
+  $("#settings-error").textContent = `已載入 ${new Date(entry.saved_at).toLocaleString("zh-TW")} 的條件；確認後請按「儲存並套用」。`;
+});
 document.querySelectorAll(".goal-card").forEach((card) => card.addEventListener("click", () => { state.activeProfile = card.dataset.profile; renderNavigation(); renderResults(); }));
 document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => { document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active")); tab.classList.add("active"); state.activeStatus = tab.dataset.status; renderResults(); }));
 
-(async function init() { try { await Promise.all([loadSettings(), loadResults()]); renderNavigation(); renderResults(); await pollStatus(); setInterval(pollStatus, 1800); } catch (error) { $("#results").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`; } }());
+document.addEventListener("visibilitychange", () => { if (document.hidden) stopStatusPolling(); else pollStatus(); });
+window.addEventListener("focus", () => { if (!document.hidden) pollStatus(); });
+
+(async function init() { try { await Promise.all([loadSettings(), loadResults(), loadSettingsHistory()]); renderNavigation(); renderResults(); await pollStatus(); } catch (error) { $("#results").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`; } }());

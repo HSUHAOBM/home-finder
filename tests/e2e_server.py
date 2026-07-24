@@ -115,10 +115,14 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
         web_app_v7.base.RESULTS_PATH,
         web_app_v7.base.SUMMARY_PATH,
         web_app_v7.DIAGNOSTICS_PATH,
+        web_app_v7.SEARCH_HISTORY_PATH,
+        web_app_v7.SETTINGS_HISTORY_PATH,
     )
     web_app_v7.base.RESULTS_PATH = data_dir / "current-results.json"
     web_app_v7.base.SUMMARY_PATH = data_dir / "current-summary.md"
     web_app_v7.DIAGNOSTICS_PATH = data_dir / "diagnostics.json"
+    web_app_v7.SEARCH_HISTORY_PATH = data_dir / "search-history.json"
+    web_app_v7.SETTINGS_HISTORY_PATH = data_dir / "settings-history.json"
     try:
         write_result_records(web_app_v7.base.RESULTS_PATH, _records())
         yield web_app_v7.app
@@ -127,6 +131,8 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             web_app_v7.base.RESULTS_PATH,
             web_app_v7.base.SUMMARY_PATH,
             web_app_v7.DIAGNOSTICS_PATH,
+            web_app_v7.SEARCH_HISTORY_PATH,
+            web_app_v7.SETTINGS_HISTORY_PATH,
         ) = original_paths
 
 

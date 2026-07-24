@@ -39,3 +39,15 @@
   .result-toolbar label, .result-toolbar select { width: 100%; }
   #visible-result-count { width: 100%; margin-left: 0; }
 }
+.settings-history-block > p, .settings-history-block > small { color: var(--muted); }
+.settings-history-block > p { margin: 7px 0 0; }
+.settings-history-controls { display: grid; grid-template-columns: auto minmax(220px, 1fr) auto; align-items: center; gap: 10px; margin-top: 14px; }
+.settings-history-controls label { color: var(--muted); font-size: .8rem; font-weight: 800; }
+.settings-history-controls select { min-width: 0; height: 44px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); font: inherit; }
+.settings-history-controls button:disabled { cursor: not-allowed; opacity: .5; }
+.settings-history-block > small { display: block; margin-top: 9px; }
+
+@media (max-width: 620px) {
+  .settings-history-controls { grid-template-columns: 1fr; }
+  .settings-history-controls select, .settings-history-controls button { width: 100%; }
+}

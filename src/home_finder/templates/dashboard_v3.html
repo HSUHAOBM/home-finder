@@ -74,6 +74,12 @@
     <dialog id="settings-dialog" class="settings-dialog">
       <form id="settings-form" method="dialog">
         <div class="dialog-header"><div><span class="section-label">SEARCH CRITERIA</span><h2>調整找房條件</h2><p>儲存後會立即重算目前結果；要抓新房源再按「開始重新搜尋」。</p></div><button id="settings-close" class="icon-button" type="button" aria-label="關閉">×</button></div>
+        <section class="settings-block settings-history-block">
+          <h3>沿用過去條件</h3>
+          <p>每次儲存都會保留版本。選擇舊版本載入表單，確認後再儲存套用。</p>
+          <div class="settings-history-controls"><label for="settings-history-select">歷史版本</label><select id="settings-history-select"><option value="">選擇過去儲存的條件</option></select><button id="settings-history-load" class="secondary-button" type="button">載入此版本</button></div>
+          <small id="settings-history-help">正在讀取歷史版本…</small>
+        </section>
 
         <section class="settings-block"><h3>搜尋區域與讀取數量</h3><div class="district-options">
           <label><input type="checkbox" name="district" value="楠梓區">楠梓區</label><label><input type="checkbox" name="district" value="三民區">三民區</label><label><input type="checkbox" name="district" value="橋頭區">橋頭區</label><label><input type="checkbox" name="district" value="大社區">大社區</label>

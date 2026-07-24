@@ -126,12 +126,16 @@ renderInsight = function renderInsightV7() {
     ? state.payload.search_diagnostics[state.activeProfile]
     : null;
   if (!box || !diagnostic) return;
+  const successfulCrawl = state.payload.successful_crawls_by_profile
+    ? state.payload.successful_crawls_by_profile[state.activeProfile]
+    : null;
+  const successTime = successfulCrawl ? new Date(successfulCrawl.finished_at).toLocaleString("zh-TW") : "尚無成功紀錄";
   const mode = diagnostic.mode === "full" ? "完整盤點" : "每日更新";
   box.insertAdjacentHTML("beforeend", `
     <div class="coverage-summary">
       <span>上次搜尋覆蓋</span>
       <strong>${mode}・${diagnostic.district_count} 區${diagnostic.pages_requested ? `・${diagnostic.pages_requested} 頁` : ""}</strong>
-      <small>讀取 ${diagnostic.fetched} 筆・${diagnostic.duration_seconds} 秒・快取${diagnostic.cache_expired ? "已過期重讀" : "仍有效"}${diagnostic.detail_failures ? `・詳情失敗 ${diagnostic.detail_failures}` : ""}</small>
+      <small>最近成功 ${successTime}・讀取 ${diagnostic.fetched} 筆・${diagnostic.duration_seconds} 秒・快取${diagnostic.cache_expired ? "已過期重讀" : "仍有效"}${diagnostic.detail_failures ? `・詳情失敗 ${diagnostic.detail_failures}` : ""}</small>
     </div>`);
 };
 

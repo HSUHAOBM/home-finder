@@ -228,3 +228,88 @@ def test_unexpected_results_failure_returns_json(monkeypatch):
         response.get_json()["error"]
         == "結果服務發生未預期錯誤，請關閉舊的命令視窗，再重新開啟找房介面。"
     )
+
+def test_successful_crawl_history_is_persisted_and_exposed(tmp_path, monkeypatch):
+    history_path = tmp_path / "search-history.json"
+    diagnostics_path = tmp_path / "diagnostics.json"
+    timestamps = iter(
+        ["2026-07-24T01:02:03+00:00", "2026-07-25T04:05:06+00:00"]
+    )
+    monkeypatch.setattr(web_app_v7, "SEARCH_HISTORY_PATH", history_path)
+    monkeypatch.setattr(web_app_v7, "DIAGNOSTICS_PATH", diagnostics_path)
+    monkeypatch.setattr(web_app_v7.base, "_iso_now", lambda: next(timestamps))
+
+    first = web_app_v7._record_successful_crawl(
+        "大樓公寓華廈",
+        "daily",
+        {"fetched": 18, "duration_seconds": 103.8, "district_count": 4},
+    )
+    second = web_app_v7._record_successful_crawl(
+        "預售屋",
+        "full",
+        {"fetched": 9, "duration_seconds": 88.2, "district_count": 4},
+    )
+    payload = web_app_v7.build_dashboard_payload([])
+
+    assert json.loads(history_path.read_text(encoding="utf-8")) == [first, second]
+    assert payload["last_successful_crawl"] == second
+    assert payload["successful_crawls_by_profile"]["大樓公寓華廈"] == first
+    assert payload["crawl_history"] == [first, second]
+
+
+def test_failed_search_does_not_record_success(tmp_path, monkeypatch):
+    history_path = tmp_path / "search-history.json"
+    original_state = web_app_v7.base._state_snapshot()
+    monkeypatch.setattr(web_app_v7, "SEARCH_HISTORY_PATH", history_path)
+    monkeypatch.setattr(
+        web_app_v7,
+        "_crawl_for_mode",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("抓取失敗")),
+    )
+
+    try:
+        web_app_v7._run_search("大樓公寓華廈", "daily")
+        assert not history_path.exists()
+        assert web_app_v7.base._state_snapshot()["phase"] == "error"
+    finally:
+        with web_app_v7.base._state_lock:
+            web_app_v7.base._state.clear()
+            web_app_v7.base._state.update(original_state)
+
+
+def test_ui_displays_successful_crawl_time():
+    static_dir = Path(web_app_v7.__file__).with_name("static")
+    dashboard = (static_dir / "dashboard_v3.js").read_text(encoding="utf-8")
+    dashboard_v7 = (static_dir / "dashboard_v7.js").read_text(encoding="utf-8")
+
+    assert "最近成功爬蟲" in dashboard
+    assert "last_successful_crawl" in dashboard
+    assert "successful_crawls_by_profile" in dashboard_v7
+    assert "最近成功 ${successTime}" in dashboard_v7
+
+def test_status_polling_only_runs_while_search_is_active():
+    script = (
+        Path(web_app_v7.__file__).with_name("static") / "dashboard_v3.js"
+    ).read_text(encoding="utf-8")
+
+    assert "setInterval(pollStatus" not in script
+    assert "scheduleStatusPoll(delay = 2500)" in script
+    assert "if (state.searchRunning) scheduleStatusPoll()" in script
+    assert 'document.addEventListener("visibilitychange"' in script
+    assert 'window.addEventListener("focus"' in script
+
+def test_development_launcher_reloads_service_and_browser_after_file_changes():
+    project_dir = Path(web_app_v7.__file__).resolve().parents[2]
+    base_source = (Path(web_app_v7.__file__).with_name("web_app.py")).read_text(
+        encoding="utf-8"
+    )
+    script = (
+        Path(web_app_v7.__file__).with_name("static") / "dashboard_v3.js"
+    ).read_text(encoding="utf-8")
+    launcher = (project_dir / "開啟找房介面.cmd").read_text(encoding="utf-8")
+
+    assert "use_reloader=args.reload" in base_source
+    assert "extra_files=_reload_extra_files() if args.reload else None" in base_source
+    assert "status.service_instance !== state.serviceInstance" in script
+    assert "window.location.reload()" in script
+    assert "--reload" in launcher
