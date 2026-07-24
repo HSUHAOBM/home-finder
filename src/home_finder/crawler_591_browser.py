@@ -18,6 +18,7 @@ from .user_models import HomeListing
 DETAIL_ID = re.compile(r"/detail/\d+/(?P<id>\d+)\.html")
 LAYOUT = re.compile(r"(?P<rooms>\d+(?:\.\d+)?)房(?P<living>\d+)廳(?P<baths>\d+)衛")
 FLOOR = re.compile(r"(?P<current>\d+)F/(?P<total>\d+)F", re.I)
+DETAIL_CACHE_PATH = "data/cache/591_details_v2.json"
 PRICE = re.compile(r"(?m)^\s*(?P<price>[\d,]+)\s*$\s*^\s*萬\s*$")
 
 
@@ -130,7 +131,7 @@ class Browser591Crawler:
         max_details: int = 20,
         delay_seconds: float = 2.0,
         headless: bool = True,
-        cache_path: str | Path = "data/cache/591_details.json",
+        cache_path: str | Path = DETAIL_CACHE_PATH,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         if not 1 <= max_details <= 50:

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import copy
 
-from home_finder.crawler_591_browser import parse_detail_text
+from home_finder.crawler_591_browser import (
+    DETAIL_CACHE_PATH,
+    Browser591Crawler,
+    parse_detail_text,
+)
 from home_finder.user_models import HomeListing
 from home_finder.user_ranking_v6 import evaluate_listing
 from home_finder.web_app_v4 import DEFAULT_SETTINGS
@@ -32,6 +36,17 @@ def listing() -> HomeListing:
 
 def test_description_mechanical_parking_overrides_structured_flat_parking():
     body = """
+def test_resale_cache_path_is_versioned_after_parser_change():
+    crawler = Browser591Crawler(
+        districts=["大社區"],
+        max_details=1,
+        delay_seconds=2,
+        sleep=lambda _seconds: None,
+    )
+
+    assert str(crawler.cache_path) == DETAIL_CACHE_PATH
+
+
     型態：電梯大樓 裝潢程度：尚未裝潢
     車位：平面式，已含售金內 坪數說明
     主建物：24.6坪
