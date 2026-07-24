@@ -98,6 +98,7 @@ def _card(record: dict[str, Any]) -> dict[str, Any]:
     listing = record["listing"]
     return {
         "id": listing.get("external_id"),
+        "source": listing.get("source") or "591",
         "status": record.get("status"),
         "profile": record.get("profile"),
         "score": record.get("score"),

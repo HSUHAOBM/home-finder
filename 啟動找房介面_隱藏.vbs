@@ -5,7 +5,7 @@ Set shell = CreateObject("WScript.Shell")
 Set fileSystem = CreateObject("Scripting.FileSystemObject")
 
 shell.CurrentDirectory = fileSystem.GetParentFolderName(WScript.ScriptFullName)
-command = """.venv\Scripts\pythonw.exe"" -m home_finder.web_app_v7"
+command = """.venv\Scripts\pythonw.exe"" -m home_finder.web_app_v8"
 
 For Each argument In WScript.Arguments
     command = command & " " & QuoteArgument(CStr(argument))

@@ -26,7 +26,7 @@ uv sync --dev
 也可以在 PowerShell 執行：
 
 ```powershell
-uv run python -m home_finder.web_app_v7
+uv run python -m home_finder.web_app_v8
 ```
 
 介面預設位於 `http://127.0.0.1:8765`。雙擊 CMD 啟動器時會開啟自動重載：程式修改後服務會自行重啟，切回瀏覽器時頁面也會自動刷新，不必手動停止再重開。要真正關閉服務，請在黑色 CMD 視窗按 `Ctrl+C`，或直接關閉視窗。搜尋期間請保持命令視窗開啟；結果會保存在本機，下一次開啟時可繼續查看。
@@ -44,6 +44,7 @@ uv run python -m home_finder.web_app_v7
 ## 資料保存
 
 - `output/current-results.json`：目前完整結果，含資料格式與評分規則版本。
+- `data/favorites.json`：收藏房源的快照、收藏時間與最近看到時間；即使房源不在目前搜尋結果中仍會保留。
 - `output/current-summary.md`：命令列流程產生的摘要。
 - `data/listing_history.json`：首次發現、再次出現與可能下架紀錄。
 - `data/cache/`：降低重複請求的詳情快取。
@@ -71,7 +72,7 @@ uv run pytest -q tests/test_browser_e2e.py
 
 ## 專案結構
 
-- `src/home_finder/web_app_v7.py`：目前正式網頁入口。
+- `src/home_finder/web_app_v8.py`：目前正式網頁入口，包含持久化收藏與歷史收藏檢視。
 - `src/home_finder/crawler_591_*.py`：591 搜尋與詳情頁讀取。
 - `src/home_finder/user_ranking_v6.py`：目前使用的房源評估入口。
 - `src/home_finder/listing_history.py`：房源生命週期紀錄。
