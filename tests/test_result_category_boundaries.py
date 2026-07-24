@@ -81,8 +81,13 @@ def test_ui_names_category_and_lists_all_reasons():
 
     assert "item.questions.forEach" in dashboard_v3
     assert "item.concerns.forEach" in dashboard_v3
+    dashboard_v7 = (static_dir / "dashboard_v7.js").read_text(encoding="utf-8")
     assert "不符合必要條件（${failureCount" in dashboard_v3
     assert "差強人意" in dashboard_v5
     assert "1～2 項必要條件不符" in dashboard_v6
     assert "只差一項" not in dashboard_v5
     assert "只差一項" not in dashboard_v6
+    assert 'option value="failures"' in dashboard_v7
+    assert "failureCategoryV7" in dashboard_v7
+    assert 'data-failure-category="${escapeHtml(value)}"' in dashboard_v7
+    assert 'state.activeStatus === "near_match" && state.nearFailureFilter' in dashboard_v7
