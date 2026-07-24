@@ -47,8 +47,8 @@ function goalDescription(profile) {
 function noteItems(item) {
   const notes = [];
   item.strengths.slice(0, 2).forEach((text) => notes.push(`<li>${escapeHtml(text)}</li>`));
-  item.questions.slice(0, 3).forEach((text) => notes.push(`<li class="question">必問：${escapeHtml(text)}</li>`));
-  item.concerns.slice(0, 3).forEach((text) => notes.push(`<li class="concern">${escapeHtml(text)}</li>`));
+  item.questions.forEach((text) => notes.push(`<li class="question">必問：${escapeHtml(text)}</li>`));
+  item.concerns.forEach((text) => notes.push(`<li class="concern">${escapeHtml(text)}</li>`));
   if (item.duplicates.length) notes.push(`<li class="concern">疑似重複刊登：${escapeHtml(item.duplicates.join("、"))}</li>`);
   return notes.join("");
 }
@@ -56,7 +56,8 @@ function noteItems(item) {
 function listingCard(item) {
   const labels = { qualified: "直接符合", needs_verification: "待確認", rejected: "已排除" };
   const price = item.price ? `${number(item.price)} 萬` : "總價待確認";
-  const failures = item.status === "rejected" ? `<div class="failure-box"><strong>排除原因</strong><ul>${(item.failures.length ? item.failures : ["未符合必要條件"]).map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul></div>` : "";
+  const failureCount = item.failures.length;
+  const failures = item.status === "rejected" ? `<div class="failure-box"><strong>不符合必要條件（${failureCount || "未確認"} 項）</strong><ul>${(failureCount ? item.failures : ["未符合必要條件"]).map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul></div>` : "";
   return `<article class="listing-card ${item.status === "rejected" ? "rejected-card" : ""}">
     <div class="card-top"><span class="badge ${escapeHtml(item.status)}">${labels[item.status]}</span><span class="score">適合度 ${number(item.score)} 分</span></div>
     <h2>${escapeHtml(item.title)}</h2><div class="price-row"><span class="price">${price}</span><span class="district">${escapeHtml(item.district)}</span></div>

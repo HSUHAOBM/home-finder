@@ -72,7 +72,7 @@ renderInsight = function renderInsightV6() {
   const secondary = [
     insight.acceptable ? `${insight.acceptable} 組可接受` : "",
     insight.needs_verification ? `${insight.needs_verification} 組待確認` : "",
-    insight.near_match ? `${insight.near_match} 組只差一項硬條件` : "",
+    insight.near_match ? `${insight.near_match} 組差強人意（1～2 項必要條件不符）` : "",
   ].filter(Boolean).join("・") || "目前沒有接近的候選";
   const reasons = (insight.top_reasons || [])
     .map((item) => `<li><span>${escapeHtml(item.reason)}</span><b>${item.count} 組</b></li>`)

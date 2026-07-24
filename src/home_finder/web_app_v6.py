@@ -190,9 +190,10 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
             else:
                 failures = record.get("hard_failures", [])
                 failure_counts.update(failures)
-                groups["rejected"].append(_card(record, "rejected"))
-                if len(failures) == 1:
+                if 1 <= len(failures) <= 2:
                     groups["near_match"].append(_card(record, "near_match"))
+                else:
+                    groups["rejected"].append(_card(record, "rejected"))
 
         insights[profile] = {
             "exact_match": len(

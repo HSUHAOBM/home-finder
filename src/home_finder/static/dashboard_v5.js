@@ -14,7 +14,7 @@ const tabs = document.querySelector(".tabs");
 if (tabs) {
   tabs.querySelector('[data-status="needs_verification"]').insertAdjacentHTML(
     "afterend",
-    '<button class="tab near-tab" type="button" data-status="near_match">只差一項 <span id="tab-near">0</span></button>'
+    '<button class="tab near-tab" type="button" data-status="near_match">差強人意 <span id="tab-near">0</span></button>'
   );
   tabs.insertAdjacentHTML(
     "beforebegin",
@@ -65,8 +65,8 @@ function renderInsight() {
     ? `目前有 ${insight.qualified} 筆直接符合`
     : "目前沒有完全符合，但先別把候選全部丟掉";
   const near = insight.near_match
-    ? `<button id="show-near-matches" type="button">${insight.near_match} 筆只差一項，直接查看</button>`
-    : "<span>目前沒有只差一項的候選</span>";
+    ? `<button id="show-near-matches" type="button">${insight.near_match} 筆差強人意，直接查看</button>`
+    : "<span>目前沒有差強人意的候選</span>";
   box.innerHTML = `
     <div><strong>${headline}</strong><p>${near}</p></div>
     ${reasons ? `<div class="reason-summary"><span>主要排除原因</span><ul>${reasons}</ul></div>` : ""}`;
@@ -85,11 +85,12 @@ const previousListingCardV5 = listingCard;
 listingCard = function listingCardV5(item) {
   if (item.status !== "near_match") return previousListingCardV5(item);
   const html = previousListingCardV5({ ...item, status: "rejected" });
+  const failureCount = item.failures.length;
   return html
     .replace("listing-card rejected-card", "listing-card near-card")
     .replace("badge rejected", "badge near_match")
-    .replace(">已排除</span>", ">只差一項</span>")
-    .replace("<strong>排除原因</strong>", "<strong>目前只差這一項</strong>");
+    .replace(">已排除</span>", ">差強人意</span>")
+    .replace(/<strong>不符合必要條件（.*?）<\/strong>/, `<strong>不符合必要條件（${failureCount} 項）</strong>`);
 };
 
 const previousGoalRuleV5 = goalRule;
