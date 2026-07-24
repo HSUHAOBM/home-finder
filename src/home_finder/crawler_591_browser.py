@@ -89,6 +89,18 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         has_parking = True
     else:
         parking_type = parking_raw
+    mechanical_description = re.search(
+        r"(?:B\d+\s*)?機械(?:上層|下層|式)?(?:車位)?", compact, re.I
+    )
+    if mechanical_description:
+        described_parking = mechanical_description.group(0)
+        if parking_raw and "平面" in parking_raw:
+            warnings.append(
+                f"車位資料矛盾：房屋資料標示「{parking_raw}」，內文寫「{described_parking}」"
+            )
+        parking_type = described_parking
+        has_parking = True
+
         has_parking = True
 
     if "平車" in listing.title and has_parking is False:
