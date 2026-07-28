@@ -100,6 +100,14 @@ $env:RUN_BROWSER_E2E = "1"
 uv run pytest -q tests/test_browser_e2e.py
 ```
 
+執行樂屋網 3 頁獨立試爬（會開啟可見 Chrome，不會混入正式結果）：
+
+```powershell
+uv run python -m home_finder.rakuya_pilot --pages 3
+```
+
+結果與保守重複率會寫入 `output/rakuya-pilot.json`。樂屋列表上的車位文案尚未經詳情頁核實，不會直接判定為平面車位。
+
 離線舊版 CLI 範例：
 
 ```powershell
