@@ -9,7 +9,7 @@
 - 預售屋：至少 2 房，建案須規劃平面車位；總價、戶別車位與主建物未公開時列待確認
 - 加分：高樓或頂樓、2 衛浴、屋齡 30 年內；透天有花園
 
-完整判斷規格請看 `USER_REQUIREMENTS.md`。
+完整判斷規格請看 [`USER_REQUIREMENTS.md`](USER_REQUIREMENTS.md)。
 
 ## 第一次安裝
 

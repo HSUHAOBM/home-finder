@@ -1,84 +1,118 @@
 # 我的高雄找房雷達
 
-這是一套在本機執行的個人找房工具。它會讀取 591 公開房源頁面，將中古屋、透天／車墅與預售屋分開整理，再依 `USER_REQUIREMENTS.md` 的必要條件、偏好與待確認項目分類。
+本機執行的高雄房源搜尋與追蹤工具。它透過瀏覽器讀取 591 公開頁面，將房源整理成三種購屋目標，再依必要條件、理想條件與資料完整度分類。
 
-目前主要使用方式是網頁介面；命令列工具保留作為離線範例與診斷用途。
+目前正式入口是 `home_finder.web_app_v8`，主要功能包括：
 
-## 第一次安裝
+- 大樓／公寓／華廈、透天／車墅、預售屋分開評估。
+- 完全符合、可接受、待確認、差強人意、已排除等可稽核分類。
+- 超過 5 個行政區時自動分批搜尋，避免 591 的選區上限。
+- 保留成功爬蟲時間、首次發現時間與搜尋／條件歷史。
+- 收藏房源並長期保留快照，即使房源暫時未出現在最新結果中仍可追蹤。
 
-需要先安裝 [uv](https://docs.astral.sh/uv/) 與 Google Chrome，然後在專案資料夾執行：
+## 快速開始
+
+### 1. 準備環境
+
+需要 Windows、[uv](https://docs.astral.sh/uv/) 與 Google Chrome。在專案根目錄執行：
 
 ```powershell
-if (-not (Test-Path config.user.json)) {
-    Copy-Item config.user.example.json config.user.json
-}
 uv sync --dev
 ```
 
-## 開啟找房介面
+首次使用且尚未有個人設定時：
 
-最簡單的方式是雙擊：
+```powershell
+Copy-Item config.user.example.json config.user.json
+```
+
+`config.user.json` 是本機個人設定，不會納入 Git。
+
+### 2. 開啟介面
+
+直接雙擊根目錄的：
 
 ```text
 開啟找房介面.cmd
 ```
 
-也可以在 PowerShell 執行：
+也可以從 PowerShell 啟動：
 
 ```powershell
 uv run python -m home_finder.web_app_v8
 ```
 
-介面預設位於 `http://127.0.0.1:8765`。雙擊 CMD 啟動器時會開啟自動重載：程式修改後服務會自行重啟，切回瀏覽器時頁面也會自動刷新，不必手動停止再重開。要真正關閉服務，請在黑色 CMD 視窗按 `Ctrl+C`，或直接關閉視窗。搜尋期間請保持命令視窗開啟；結果會保存在本機，下一次開啟時可繼續查看。
+瀏覽器預設開啟 <http://127.0.0.1:8765>。CMD 視窗必須保持開啟；要停止服務時，在視窗按 `Ctrl+C` 或直接關閉視窗。
 
-更完整的操作方式請看 `START_HERE.md` 與 `WEB_UI.md`。
+啟動器已使用 `--reload`，一般程式或頁面調整後會自動重載，不需要反覆關閉重開。
 
-## 三種購屋目標
+## 使用流程
 
-- 大樓／公寓／華廈：總價、主建物坪數、房數與平面車位為必要條件。
-- 透天／車墅：確認實際建物型態與汽車停放條件。
-- 預售屋：缺少主建物、戶別價格或車位資料時保留為待確認，不直接判定合格。
+1. 選擇購屋目標。
+2. 選擇「每日更新」或「完整盤點」。
+3. 視需要調整行政區、價格、坪數、房數、車位、屋齡與樓層條件。
+4. 開始搜尋，等待畫面顯示完成。
+5. 從分類頁籤檢查結果與每一項不符合原因。
+6. 對想持續追蹤的房源按「☆ 收藏」，之後從「我的收藏」查看。
 
-個人條件集中在 `config.user.json`，並可從網頁介面調整。這個檔案包含個人偏好，不會納入 Git。
+房價、坪數、車位、屋況及廣告描述仍須向仲介、屋主與正式文件確認。
 
-## 資料保存
+## 目錄結構
 
-- `output/current-results.json`：目前完整結果，含資料格式與評分規則版本。
-- `data/favorites.json`：收藏房源的快照、收藏時間與最近看到時間；即使房源不在目前搜尋結果中仍會保留。
-- `output/current-summary.md`：命令列流程產生的摘要。
-- `data/listing_history.json`：首次發現、再次出現與可能下架紀錄。
-- `data/cache/`：降低重複請求的詳情快取。
+| 路徑 | 用途 |
+| --- | --- |
+| `開啟找房介面.cmd` | Windows 正式啟動入口 |
+| `config.user.example.json` | 個人搜尋條件範例 |
+| `src/home_finder/` | 爬蟲、評分、Flask API 與前端程式 |
+| `tests/` | 單元、整合與瀏覽器測試 |
+| `docs/` | 操作說明、購屋規格、來源限制與舊流程文件 |
+| `examples/` | 舊 CLI 設定與離線房源範例 |
+| `data/` | 收藏、歷史、診斷與快取等本機資料 |
+| `output/` | 目前搜尋結果與摘要 |
 
-以上都是本機執行資料，不會納入 Git。範例資料則保留在 `data/sample_listings.json` 與 `data/user_sample_listings.json`。
+## 本機資料
 
-評分規則版本更新後，介面會用既有房源在本機重新評估一次，不會因此重新爬取 591。
+以下資料不會納入 Git：
 
-## 測試
+| 路徑 | 內容 |
+| --- | --- |
+| `config.user.json` | 目前使用中的個人條件 |
+| `data/favorites.json` | 收藏房源與收藏時間 |
+| `data/listing_history.json` | 首次發現、再次出現與可能下架紀錄 |
+| `data/search_history.json` | 成功完成的搜尋紀錄 |
+| `data/settings_history.json` | 可重新載入的條件版本 |
+| `data/cache/` | 591 詳情快取 |
+| `output/current-results.json` | 目前完整搜尋結果 |
+
+## 開發與測試
+
+執行一般測試：
 
 ```powershell
 uv run pytest
 ```
 
-測試涵蓋條件驗證、評分、重複房源、591 解析、歷史紀錄與網頁 API。
-
-真實瀏覽器 E2E 預設跳過，需明確啟用：
+執行真實瀏覽器 E2E：
 
 ```powershell
 $env:RUN_BROWSER_E2E = "1"
 uv run pytest -q tests/test_browser_e2e.py
 ```
 
-若本機尚未安裝 Chromium，先執行 `uv run playwright install chromium`。E2E 使用隔離測試資料，不會改寫個人條件、現有房源或連線爬取 591。
+離線舊版 CLI 範例：
 
-## 專案結構
+```powershell
+uv run python -m home_finder.cli --config examples/config.example.json --input examples/sample_listings.json
+```
 
-- `src/home_finder/web_app_v8.py`：目前正式網頁入口，包含持久化收藏與歷史收藏檢視。
-- `src/home_finder/crawler_591_*.py`：591 搜尋與詳情頁讀取。
-- `src/home_finder/user_ranking_v6.py`：目前使用的房源評估入口。
-- `src/home_finder/listing_history.py`：房源生命週期紀錄。
-- `src/home_finder/templates/`、`static/`：網頁畫面。
-- `tests/`：自動化測試。
+## 文件索引
+
+- [完整操作說明](docs/START_HERE.md)
+- [網頁介面說明](docs/WEB_UI.md)
+- [個人購屋篩選規格](docs/USER_REQUIREMENTS.md)
+- [房源來源限制與分批規則](docs/SOURCE_LIMITS.md)
+- [舊版公開 HTML 來源診斷](docs/LIVE_USAGE.md)
 
 ## 使用限制
 
-工具只讀取公開頁面，不處理登入、驗證碼或其他存取控制；請求間隔不得低於 2 秒。網站內容與服務規範可能變動，使用前應自行確認最新規定。房價、坪數、車位、屋況與事故資訊仍須向仲介、屋主及正式文件再次核對。
+本工具只讀取公開頁面，不處理登入、驗證碼或其他存取控制，也不應用來進行高頻請求。591 網站結構與服務規範可能變動；新增來源或調整爬蟲前，請先更新[來源限制文件](docs/SOURCE_LIMITS.md)。

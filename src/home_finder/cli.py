@@ -12,7 +12,7 @@ from .sources import JsonFileSource
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="依個人條件篩選並排序房源")
     parser.add_argument("--config", default="config.json", help="偏好設定 JSON")
-    parser.add_argument("--input", default="data/sample_listings.json", help="房源資料 JSON")
+    parser.add_argument("--input", default="examples/sample_listings.json", help="房源資料 JSON")
     parser.add_argument("--limit", type=int, default=20, help="最多顯示幾筆")
     return parser
 

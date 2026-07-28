@@ -7,14 +7,14 @@
 ## 使用方式
 
 ```powershell
-Copy-Item config.live.example.json config.live.json
+Copy-Item examples/config.live.example.json config.live.json
 uv run python -m home_finder.live_cli --config config.live.json
 ```
 
 離線驗證可使用：
 
 ```powershell
-uv run python -m home_finder.live_cli --config config.live.example.json --input data/sample_listings.json
+uv run python -m home_finder.live_cli --config examples/config.live.example.json --input examples/sample_listings.json
 ```
 
 `region_id` 是 591 搜尋網址上的縣市代碼，例如台北市為 `1`、新北市為 `3`。
