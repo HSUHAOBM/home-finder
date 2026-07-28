@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 
 from .user_models import Evaluation, HomeListing, ProfileName
+from .listing_identity import source_listing_ref
 
 
 TARGET_DISTRICTS = {"楠梓區", "三民區", "橋頭區", "大社區"}
@@ -31,6 +32,10 @@ def duplicate_key(listing: HomeListing) -> tuple | None:
     )
 
 
+def duplicate_ref(listing: HomeListing) -> str:
+    return source_listing_ref(listing.source, listing.external_id)
+
+
 def find_duplicate_groups(listings: list[HomeListing]) -> dict[str, list[str]]:
     buckets: dict[tuple, list[HomeListing]] = defaultdict(list)
     for listing in listings:
@@ -42,9 +47,10 @@ def find_duplicate_groups(listings: list[HomeListing]) -> dict[str, list[str]]:
     for group in buckets.values():
         if len(group) < 2:
             continue
-        ids = [item.external_id for item in group]
+        ids = [duplicate_ref(item) for item in group]
         for item in group:
-            result[item.external_id] = [value for value in ids if value != item.external_id]
+            item_ref = duplicate_ref(item)
+            result[item_ref] = [value for value in ids if value != item_ref]
     return result
 
 
@@ -190,7 +196,7 @@ def evaluate_all(listings: list[HomeListing]) -> list[Evaluation]:
     for listing in listings:
         for profile in profiles:
             result = evaluate_listing(listing, profile)
-            result.duplicate_ids = duplicates.get(listing.external_id, [])
+            result.duplicate_ids = duplicates.get(duplicate_ref(listing), [])
             results.append(result)
     order = {"qualified": 0, "needs_verification": 1, "rejected": 2}
     return sorted(results, key=lambda item: (order[item.status], -item.score, item.listing.total_price_wan))

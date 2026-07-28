@@ -56,7 +56,10 @@ def test_detail_structured_parking_overrides_title() -> None:
 def test_duplicate_group_ignores_different_asking_prices() -> None:
     first = home(external_id="a", community="希望社區", total_area_ping=31.2)
     second = home(external_id="b", community="希望社區", total_area_ping=31.2, total_price_wan=1150)
-    assert find_duplicate_groups([first, second]) == {"a": ["b"], "b": ["a"]}
+    assert find_duplicate_groups([first, second]) == {
+        "test:a": ["test:b"],
+        "test:b": ["test:a"],
+    }
 
 
 def test_parse_realistic_list_card() -> None:

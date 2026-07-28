@@ -14,6 +14,7 @@ from flask import jsonify, render_template, request
 from . import web_app as base
 from . import web_app_v5 as previous
 from .listing_history import annotate_history
+from .listing_identity import source_listing_ref
 from .make_report import render_report
 from .result_store import read_result_records, write_result_records
 from .storage import atomic_write_text
@@ -38,6 +39,12 @@ def _physical_key(record: dict[str, Any]) -> tuple[Any, ...]:
     profile = record.get("profile")
     community = _normal(listing.get("community"))
     address = _normal(listing.get("address"))
+    duplicate_ids = [str(item) for item in record.get("duplicate_ids", [])]
+    if duplicate_ids:
+        own_ref = source_listing_ref(listing.get("source"), listing.get("external_id"))
+        group_id = min([own_ref] + duplicate_ids)
+        return ("duplicate", profile, group_id)
+
     if community and address:
         return (
             "property",
@@ -48,12 +55,7 @@ def _physical_key(record: dict[str, Any]) -> tuple[Any, ...]:
             listing.get("current_floor"),
             listing.get("total_floors"),
             round(float(listing.get("main_area_ping") or 0), 1),
-            round(float(listing.get("total_price_wan") or 0)),
         )
-    duplicate_ids = [str(item) for item in record.get("duplicate_ids", [])]
-    if duplicate_ids:
-        group_id = min([str(listing.get("external_id"))] + duplicate_ids)
-        return ("duplicate", profile, group_id)
     return (
         "listing",
         profile,
@@ -82,6 +84,8 @@ def cluster_selected_records(records: list[dict[str, Any]]) -> list[dict[str, An
         item["_source_variants"] = [
             {
                 "id": candidate["listing"].get("external_id"),
+                "source": candidate["listing"].get("source"),
+                "origin_source": candidate["listing"].get("origin_source"),
                 "title": candidate["listing"].get("title"),
                 "url": candidate["listing"].get("url"),
                 "price": candidate["listing"].get("total_price_wan"),

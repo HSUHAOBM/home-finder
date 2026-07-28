@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from .user_models import Evaluation, HomeListing, ProfileName
-from .user_ranking import CONDO_TYPES, HOUSE_TYPES, find_duplicate_groups
+from .user_ranking import CONDO_TYPES, HOUSE_TYPES, duplicate_ref, find_duplicate_groups
 
 
 def _required_number(
@@ -167,7 +167,7 @@ def evaluate_all(listings: list[HomeListing], settings: dict) -> list[Evaluation
     for listing in listings:
         for profile in profiles:
             result = evaluate_listing(listing, profile, settings)
-            result.duplicate_ids = duplicates.get(listing.external_id, [])
+            result.duplicate_ids = duplicates.get(duplicate_ref(listing), [])
             results.append(result)
     order = {"qualified": 0, "needs_verification": 1, "rejected": 2}
     return sorted(results, key=lambda item: (order[item.status], -item.score, item.listing.total_price_wan))

@@ -19,6 +19,7 @@ from .crawler_591_presale import SECTION_IDS as LEGACY_SECTION_IDS
 from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .kaohsiung_districts import ALL_DISTRICTS, DISTRICT_GROUPS, SECTION_IDS
 from .listing_history import annotate_history
+from .listing_identity import listing_history_key
 from .result_store import (
     RANKING_VERSION,
     RESULT_SCHEMA_VERSION,
@@ -309,7 +310,7 @@ def _full_scan_merge(
             continue
         if (item.source, item.external_id) in fetched_keys:
             continue
-        entry = history.setdefault(item.external_id, {})
+        entry = history.setdefault(listing_history_key(item), {})
         misses = int(entry.get("missed_full_scans", 0)) + 1
         entry["missed_full_scans"] = misses
         if misses >= 2:
@@ -324,7 +325,7 @@ def _full_scan_merge(
     for item in fetched:
         item.search_profile = profile
         merged[(item.source, item.external_id)] = item
-        entry = history.setdefault(item.external_id, {})
+        entry = history.setdefault(listing_history_key(item), {})
         entry["missed_full_scans"] = 0
         entry["lifecycle_status"] = item.lifecycle_status
     _write_json(HISTORY_PATH, history)
@@ -407,9 +408,14 @@ def _run_search(profile: str, mode: str) -> None:
         _record_successful_crawl(profile, mode, diagnostics)
 
         insight = build_dashboard_payload(records)["profile_insights"][profile]
-        status_note = (
-            "；抓取異常，未更新可能下架狀態" if archive_skip_reason else ""
-        )
+        status_notes: list[str] = []
+        partial_errors = diagnostics.get("partial_errors") or []
+        if partial_errors:
+            failed_sources = "、".join(error.split("：", 1)[0] for error in partial_errors)
+            status_notes.append(f"{failed_sources}讀取失敗，其他來源已保留")
+        if archive_skip_reason:
+            status_notes.append("未更新可能下架狀態")
+        status_note = f"；{'；'.join(status_notes)}" if status_notes else ""
         base._update_state(
             running=False,
             phase="complete",

@@ -39,6 +39,9 @@ class HomeListing:
     first_seen_at: str | None = None
     last_seen_at: str | None = None
     lifecycle_status: str | None = None
+    origin_source: str | None = None
+    origin_external_id: str | None = None
+    broker_name: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "HomeListing":

@@ -1,0 +1,10 @@
+.listing-source {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.card-top .listing-source + .score {
+  margin-left: 0.65rem;
+}

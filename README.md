@@ -1,12 +1,13 @@
 # 我的高雄找房雷達
 
-本機執行的高雄房源搜尋與追蹤工具。它透過瀏覽器讀取 591 公開頁面，將房源整理成三種購屋目標，再依必要條件、理想條件與資料完整度分類。
+本機執行的高雄房源搜尋與追蹤工具。它透過瀏覽器低頻讀取 591 與永慶公開頁面，將房源整理成三種購屋目標，再依必要條件、理想條件與資料完整度分類。
 
-目前正式入口是 `home_finder.web_app_v8`，主要功能包括：
+目前正式入口是 `home_finder.web_app_v9`，主要功能包括：
 
 - 大樓／公寓／華廈、透天／車墅、預售屋分開評估。
 - 完全符合、可接受、待確認、差強人意、已排除等可稽核分類。
 - 超過 5 個行政區時自動分批搜尋，避免 591 的選區上限。
+- 591 與永慶中古屋合併搜尋，跨網站疑似同一物件群組顯示並保留各來源連結。
 - 保留成功爬蟲時間、首次發現時間與搜尋／條件歷史。
 - 收藏房源並長期保留快照，即使房源暫時未出現在最新結果中仍可追蹤。
 
@@ -39,7 +40,7 @@ Copy-Item config.user.example.json config.user.json
 也可以從 PowerShell 啟動：
 
 ```powershell
-uv run python -m home_finder.web_app_v8
+uv run python -m home_finder.web_app_v9
 ```
 
 瀏覽器預設開啟 <http://127.0.0.1:8765>。CMD 視窗必須保持開啟；要停止服務時，在視窗按 `Ctrl+C` 或直接關閉視窗。
@@ -81,7 +82,7 @@ uv run python -m home_finder.web_app_v8
 | `data/listing_history.json` | 首次發現、再次出現與可能下架紀錄 |
 | `data/search_history.json` | 成功完成的搜尋紀錄 |
 | `data/settings_history.json` | 可重新載入的條件版本 |
-| `data/cache/` | 591 詳情快取 |
+| `data/cache/` | 各房源網站的詳情快取 |
 | `output/current-results.json` | 目前完整搜尋結果 |
 
 ## 開發與測試
@@ -115,4 +116,4 @@ uv run python -m home_finder.cli --config examples/config.example.json --input e
 
 ## 使用限制
 
-本工具只讀取公開頁面，不處理登入、驗證碼或其他存取控制，也不應用來進行高頻請求。591 網站結構與服務規範可能變動；新增來源或調整爬蟲前，請先更新[來源限制文件](docs/SOURCE_LIMITS.md)。
+本工具只低頻讀取公開頁面，不處理登入、驗證碼或其他存取控制。外部網站結構、服務規範與跨站轉刊方式可能變動；新增來源或調整爬蟲前，請先更新[來源限制文件](docs/SOURCE_LIMITS.md)。

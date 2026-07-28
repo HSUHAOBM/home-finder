@@ -13,6 +13,7 @@ from typing import Any
 from flask import Flask, jsonify, render_template
 
 from .crawler_591_browser_v3 import Browser591Crawler
+from .listing_identity import source_listing_ref
 from .crawler_591_presale_v2 import Browser591PresaleCrawler
 from .make_report import render_report
 from .result_store import read_result_records
@@ -67,7 +68,9 @@ def select_listing_results(records: list[dict[str, Any]]) -> list[dict[str, Any]
         listing = record.get("listing", {})
         external_id = str(listing.get("external_id", ""))
         if external_id:
-            grouped[external_id].append(record)
+            grouped[
+                source_listing_ref(listing.get("source"), external_id)
+            ].append(record)
 
     status_order = {"qualified": 0, "needs_verification": 1, "rejected": 2}
     selected: list[dict[str, Any]] = []
@@ -99,6 +102,9 @@ def _card(record: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": listing.get("external_id"),
         "source": listing.get("source") or "591",
+        "origin_source": listing.get("origin_source"),
+        "origin_id": listing.get("origin_external_id"),
+        "broker_name": listing.get("broker_name"),
         "status": record.get("status"),
         "profile": record.get("profile"),
         "score": record.get("score"),

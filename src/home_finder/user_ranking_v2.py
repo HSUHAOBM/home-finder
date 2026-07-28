@@ -3,6 +3,7 @@ from __future__ import annotations
 from .user_models import Evaluation, HomeListing, ProfileName
 from .user_ranking import evaluate_listing as _evaluate_listing
 from .user_ranking import find_duplicate_groups
+from .user_ranking import duplicate_ref
 
 
 def evaluate_listing(listing: HomeListing, profile: ProfileName) -> Evaluation:
@@ -24,7 +25,7 @@ def evaluate_all(listings: list[HomeListing]) -> list[Evaluation]:
     for listing in listings:
         for profile in profiles:
             result = evaluate_listing(listing, profile)
-            result.duplicate_ids = duplicates.get(listing.external_id, [])
+            result.duplicate_ids = duplicates.get(duplicate_ref(listing), [])
             results.append(result)
     order = {"qualified": 0, "needs_verification": 1, "rejected": 2}
     return sorted(results, key=lambda item: (order[item.status], -item.score, item.listing.total_price_wan))

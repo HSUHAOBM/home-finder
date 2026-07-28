@@ -14,7 +14,9 @@
     "headless": true,
     "presale_max_details": 30,
     "pages": 3,
-    "publish_days": 5
+    "publish_days": 5,
+    "yungching_enabled": true,
+    "yungching_max_details": 20
   },
   "requirements": {
     "max_total_price_wan": 1200,

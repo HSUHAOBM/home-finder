@@ -73,9 +73,24 @@ def test_history_marks_new_seen_and_updated(tmp_path):
     updated = annotate_history(
         [listing(listing_updated_text="1分鐘前更新")],
         path=path,
+
         now=first_time + timedelta(hours=2),
     )[0]
     assert updated.lifecycle_status == "updated"
+
+
+def test_history_keeps_same_external_id_from_different_sources(tmp_path):
+    path = tmp_path / "history.json"
+    now = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    first, second = annotate_history(
+        [listing(source="591中古屋"), listing(source="永慶房仲網")],
+        path=path,
+        now=now,
+    )
+    assert first.lifecycle_status == "new"
+    assert second.lifecycle_status == "new"
+    payload = path.read_text(encoding="utf-8")
+    assert '"591中古屋:A"' in payload and '"永慶房仲網:A"' in payload
 
 
 def test_update_text_parser():

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .storage import atomic_write_json
+from .listing_identity import listing_history_key
 from .user_models import HomeListing
 
 
@@ -29,7 +30,11 @@ def annotate_history(
     annotated: list[HomeListing] = []
 
     for listing in listings:
-        previous = history.get(listing.external_id)
+        key = listing_history_key(listing)
+        previous = history.get(key)
+        if previous is None:
+            # Read legacy entries once while migrating to source-aware keys.
+            previous = history.get(listing.external_id)
         if previous is None:
             first_seen = timestamp
             lifecycle = "new"
@@ -48,7 +53,9 @@ def annotate_history(
             lifecycle_status=listing.lifecycle_status or lifecycle,
         )
         annotated.append(item)
-        history[listing.external_id] = {
+        history[key] = {
+            "source": item.source,
+            "external_id": item.external_id,
             "title": item.title,
             "url": item.url,
             "search_profile": item.search_profile,

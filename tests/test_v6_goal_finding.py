@@ -4,6 +4,7 @@ import copy
 
 from home_finder import web_app as base
 from home_finder import web_app_v6
+from home_finder.web_app_v4 import DEFAULT_SETTINGS
 from home_finder.user_models import HomeListing
 from home_finder.user_ranking_v6 import evaluate_all
 
@@ -36,7 +37,8 @@ def listing(external_id: str = "A", **changes) -> HomeListing:
 
 
 def payload_for(listings: list[HomeListing]) -> dict:
-    settings = copy.deepcopy(web_app_v6.load_settings())
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
+    settings["profiles"]["大樓公寓華廈"]["require_high_floor"] = False
     records = [item.to_dict() for item in evaluate_all(listings, settings)]
     return web_app_v6.build_dashboard_payload(records)
 
