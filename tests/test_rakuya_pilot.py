@@ -53,13 +53,21 @@ def test_compare_with_current_uses_conservative_physical_key():
         source="樂屋網", external_id="R-1", title="樂屋同屋",
         url="https://example.com/rakuya/1", total_price_wan=1000, **base
     )
+    duplicate_second_ad = HomeListing(
+        source="樂屋網", external_id="R-1B", title="另一房仲刊登同屋",
+        url="https://example.com/rakuya/1b", total_price_wan=998, **base
+    )
     potential_new = HomeListing(
         source="樂屋網", external_id="R-2", title="樂屋另一間",
         url="https://example.com/rakuya/2", city="高雄市", district="三民區",
         total_price_wan=900, property_type="公寓", total_area_ping=30,
         rooms=3, current_floor=4, address="民族一路",
     )
-    result = compare_with_current([duplicate, potential_new], [current])
-    assert result["overlap_count"] == 1
+    result = compare_with_current([duplicate, duplicate_second_ad, potential_new], [current])
+    assert result["overlap_count"] == 2
+    assert result["overlap_distinct_property_count"] == 1
+    assert result["pilot_distinct_property_count"] == 2
+    assert result["pilot_intra_source_duplicate_group_count"] == 1
+    assert result["pilot_intra_source_duplicate_ad_count"] == 1
     assert result["potential_new_count"] == 1
     assert result["overlaps"][0]["matches"][0]["source"] == "591中古屋"

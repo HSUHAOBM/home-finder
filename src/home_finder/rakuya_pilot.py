@@ -36,6 +36,28 @@ def _load_current_listings(path: Path) -> list[HomeListing]:
     return listings
 
 
+def _physical_group_summary(listings: list[HomeListing]) -> dict[str, Any]:
+    groups: dict[tuple, list[HomeListing]] = {}
+    unkeyed_count = 0
+    for listing in listings:
+        key = duplicate_key(listing)
+        if key is None:
+            unkeyed_count += 1
+        else:
+            groups.setdefault(key, []).append(listing)
+    duplicates = [group for group in groups.values() if len(group) > 1]
+    return {
+        "distinct_property_count": len(groups) + unkeyed_count,
+        "duplicate_group_count": len(duplicates),
+        "duplicate_ad_count": sum(len(group) - 1 for group in duplicates),
+        "duplicate_groups": [[{
+            "external_id": item.external_id,
+            "title": item.title,
+            "url": item.url,
+        } for item in group] for group in duplicates],
+    }
+
+
 def compare_with_current(pilot: list[HomeListing], current: list[HomeListing]) -> dict[str, Any]:
     current_keys: dict[tuple, list[HomeListing]] = {}
     for listing in current:
@@ -45,10 +67,12 @@ def compare_with_current(pilot: list[HomeListing], current: list[HomeListing]) -
 
     overlaps: list[dict[str, Any]] = []
     potential_new: list[HomeListing] = []
+    overlap_listings: list[HomeListing] = []
     for listing in pilot:
         key = duplicate_key(listing)
         matched = current_keys.get(key, []) if key is not None else []
         if matched:
+            overlap_listings.append(listing)
             overlaps.append({
                 "rakuya": listing.to_dict(),
                 "matches": [{
@@ -58,12 +82,21 @@ def compare_with_current(pilot: list[HomeListing], current: list[HomeListing]) -
             })
         else:
             potential_new.append(listing)
+    pilot_summary = _physical_group_summary(pilot)
+    overlap_summary = _physical_group_summary(overlap_listings)
+    potential_summary = _physical_group_summary(potential_new)
 
     return {
         "current_listing_count": len(current),
         "current_sources": dict(Counter(item.source for item in current)),
         "overlap_count": len(overlaps),
+        "overlap_distinct_property_count": overlap_summary["distinct_property_count"],
         "potential_new_count": len(potential_new),
+        "potential_new_distinct_property_count": potential_summary["distinct_property_count"],
+        "pilot_distinct_property_count": pilot_summary["distinct_property_count"],
+        "pilot_intra_source_duplicate_group_count": pilot_summary["duplicate_group_count"],
+        "pilot_intra_source_duplicate_ad_count": pilot_summary["duplicate_ad_count"],
+        "intra_source_duplicate_groups": pilot_summary["duplicate_groups"],
         "overlap_rate": round(len(overlaps) / len(pilot), 4) if pilot else 0,
         "overlaps": overlaps,
         "potential_new": [item.to_dict() for item in potential_new],
@@ -111,9 +144,16 @@ def main() -> None:
     crawl = result["crawl"]
     comparison = result["comparison"]
     print(f"樂屋頁面總數：{crawl['reported_total'] or '未取得'}")
-    print(f"試爬唯一房源：{crawl['fetched']} 筆")
-    print(f"保守判定與現有結果重複：{comparison['overlap_count']} 筆")
-    print(f"尚未命中現有結果：{comparison['potential_new_count']} 筆")
+    print(f"試爬唯一刊登：{crawl['fetched']} 筆")
+    print(f"保守估計不同房屋：{comparison['pilot_distinct_property_count']} 間")
+    print(
+        f"與現有結果重複：{comparison['overlap_count']} 筆刊登／"
+        f"{comparison['overlap_distinct_property_count']} 間房"
+    )
+    print(
+        f"尚未命中：{comparison['potential_new_count']} 筆刊登／"
+        f"{comparison['potential_new_distinct_property_count']} 間房"
+    )
     print(f"報告：{DEFAULT_REPORT}")
 
 
