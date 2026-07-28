@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -13,6 +15,8 @@ from .user_models import HomeListing
 
 SOURCE_NAME = "樂屋網"
 BASE_URL = "https://www.rakuya.com.tw/sell/result"
+DETAIL_CACHE_PATH = Path("data/cache/rakuya_details.json")
+DETAIL_CACHE_TTL_SECONDS = 24 * 60 * 60
 DISTRICT_ZIPCODES = {
     "三民區": "807", "左營區": "813", "楠梓區": "811",
     "橋頭區": "825", "仁武區": "814", "大社區": "815",
@@ -100,10 +104,88 @@ def parse_rakuya_list_card(payload: dict[str, Any]) -> HomeListing:
     )
 
 
+def _line_after(body_text: str, heading: str) -> str | None:
+    lines = [line.strip() for line in body_text.splitlines() if line.strip()]
+    for index, line in enumerate(lines):
+        if line != heading:
+            continue
+        for value in lines[index + 1:index + 5]:
+            if value != heading:
+                return value
+    return None
+
+
+def parse_rakuya_detail_text(listing: HomeListing, body_text: str) -> HomeListing:
+    type_value = _line_after(body_text, "類型")
+    property_type = _property_type(type_value or "") or listing.property_type
+    main_area = _line_after(body_text, "主建物")
+    parking_value = _line_after(body_text, "車位")
+    parking_type = _line_after(body_text, "車位類型")
+    address_match = re.search(
+        r"高雄市(?P<district>三民區|左營區|楠梓區|橋頭區|仁武區|大社區)"
+        r"(?P<address>[^\s\n]+)",
+        body_text,
+    )
+    brand_match = re.search(
+        r"^(?P<brand>(?:永慶不動產|永義房屋|台慶不動產|住商不動產|"
+        r"中信房屋|大家房屋|東森房屋|信義房屋|太平洋房屋|"
+        r"21世紀不動產|全國不動產)[^\n]*)$",
+        body_text,
+        re.MULTILINE,
+    )
+    company_match = re.search(
+        r"^(?P<company>[^\n]{2,60}(?:不動產|房屋|地產)[^\n]{0,30}"
+        r"(?:有限公司|股份有限公司))$",
+        body_text,
+        re.MULTILINE,
+    )
+    warnings = [
+        warning for warning in listing.data_warnings
+        if "尚未讀取詳情確認車位型式" not in warning
+    ]
+    list_claimed_flat = any(
+        value in warning
+        for warning in listing.data_warnings
+        for value in ("平面車位", "平車")
+    )
+    if parking_type and list_claimed_flat and "機械" in parking_type:
+        warnings.append(f"樂屋列表宣稱平面車位，但詳情欄位為：{parking_type}")
+    if not parking_type:
+        warnings.append("樂屋詳情頁未提供車位類型")
+
+    has_parking: bool | None
+    if parking_value:
+        has_parking = "無" not in parking_value
+    elif parking_type:
+        has_parking = "無" not in parking_type
+    else:
+        has_parking = listing.has_parking
+
+    return replace(
+        listing,
+        district=address_match.group("district") if address_match else listing.district,
+        address=(
+            f"高雄市{address_match.group('district')}{address_match.group('address')}"
+            if address_match else listing.address
+        ),
+        property_type=property_type,
+        main_area_ping=(
+            _float(main_area.removesuffix("坪"))
+            if main_area and re.fullmatch(r"[\d.]+\s*坪", main_area)
+            else listing.main_area_ping
+        ),
+        parking_type=parking_type or listing.parking_type,
+        has_parking=has_parking,
+        origin_source=brand_match.group("brand") if brand_match else listing.origin_source,
+        broker_name=company_match.group("company") if company_match else listing.broker_name,
+        data_warnings=warnings,
+    )
+
+
 class BrowserRakuyaPilotCrawler:
     def __init__(
         self, districts: list[str], max_price: float, max_pages: int = 3,
-        delay_seconds: float = 3.0, headless: bool = False,
+        delay_seconds: float = 3.0, headless: bool = False, background: bool = True,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         unsupported = [value for value in districts if value not in DISTRICT_ZIPCODES]
@@ -117,9 +199,22 @@ class BrowserRakuyaPilotCrawler:
         self.max_price = float(max_price)
         self.max_pages = max_pages
         self.delay_seconds = delay_seconds
+        self.background = background
         self.headless = headless
         self.sleep = sleep
         self.stats: dict[str, Any] = {}
+        self.detail_stats: dict[str, Any] = {}
+
+
+    def _launch_options(self) -> dict[str, Any]:
+        options: dict[str, Any] = {"headless": self.headless}
+        if self.background and not self.headless:
+            options["args"] = [
+                "--window-position=-32000,-32000",
+                "--window-size=1280,900",
+            ]
+        return options
+
 
     def _list_url(self, page_number: int) -> str:
         query = {
@@ -184,9 +279,9 @@ class BrowserRakuyaPilotCrawler:
         with sync_playwright() as playwright:
             state_path = Path("data/cache/rakuya_storage_state.json").resolve()
             try:
-                browser = playwright.chromium.launch(channel="chrome", headless=self.headless)
+                browser = playwright.chromium.launch(channel="chrome", **self._launch_options())
             except Exception:
-                browser = playwright.chromium.launch(headless=self.headless)
+                browser = playwright.chromium.launch(**self._launch_options())
             context_options: dict[str, Any] = {"locale": "zh-TW"}
             if state_path.exists():
                 context_options["storage_state"] = str(state_path)
@@ -216,7 +311,123 @@ class BrowserRakuyaPilotCrawler:
         self.stats = {
             "source": SOURCE_NAME, "pages_requested": self.max_pages,
             "page_unique_counts": page_counts, "fetched": len(fetched),
-            "reported_total": result_total, "headless": self.headless,
+            "reported_total": result_total, "headless": self.headless, "background": self.background,
             "duration_seconds": round(time.time() - started, 1),
         }
         return fetched
+
+    @staticmethod
+    def _load_detail_cache(cache_path: Path) -> dict[str, dict[str, Any]]:
+        if not cache_path.exists():
+            return {}
+        if time.time() - cache_path.stat().st_mtime >= DETAIL_CACHE_TTL_SECONDS:
+            return {}
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("樂屋詳情快取格式錯誤；原檔已保留")
+        return payload
+
+    @staticmethod
+    def _save_detail_cache(
+        cache_path: Path, payload: dict[str, dict[str, Any]]
+    ) -> None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = cache_path.with_suffix(".tmp")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        temporary.replace(cache_path)
+
+    def enrich_details(
+        self,
+        listings: list[HomeListing],
+        *,
+        max_details: int = 12,
+        cache_path: str | Path = DETAIL_CACHE_PATH,
+    ) -> list[HomeListing]:
+        if not 1 <= max_details <= 15:
+            raise ValueError("樂屋詳情試爬 max_details 必須介於 1 到 15")
+        started = time.time()
+        path = Path(cache_path)
+        cache = self._load_detail_cache(path)
+        selected = listings[:max_details]
+        results: list[HomeListing] = []
+        uncached = [item for item in selected if item.external_id not in cache]
+        cache_hits = len(selected) - len(uncached)
+        failures = 0
+
+        for listing in selected:
+            cached = cache.get(listing.external_id)
+            if cached:
+                detail = HomeListing.from_dict(cached)
+                if detail.broker_name and not any(
+                    term in detail.broker_name
+                    for term in ("不動產", "房屋", "地產")
+                ):
+                    detail = replace(detail, broker_name=None)
+                results.append(replace(
+                    detail,
+                    title=listing.title,
+                    url=listing.url,
+                    total_price_wan=listing.total_price_wan,
+                    search_profile=listing.search_profile,
+                ))
+
+        if uncached:
+            with sync_playwright() as playwright:
+                state_path = Path("data/cache/rakuya_storage_state.json").resolve()
+                try:
+                    browser = playwright.chromium.launch(
+                        channel="chrome", **self._launch_options()
+                    )
+                except Exception:
+                    browser = playwright.chromium.launch(**self._launch_options())
+                context_options: dict[str, Any] = {"locale": "zh-TW"}
+                if state_path.exists():
+                    context_options["storage_state"] = str(state_path)
+                context = browser.new_context(**context_options)
+                try:
+                    page = context.new_page()
+                    for index, listing in enumerate(uncached):
+                        if index:
+                            self.sleep(self.delay_seconds)
+                        try:
+                            page.goto(
+                                listing.url,
+                                wait_until="domcontentloaded",
+                                timeout=30000,
+                            )
+                            page.locator("body").wait_for(timeout=15000)
+                            page.wait_for_timeout(3000)
+                            challenge = self._challenge_message(page)
+                            if challenge:
+                                raise RuntimeError(challenge)
+                            detail = parse_rakuya_detail_text(
+                                listing, page.locator("body").inner_text()
+                            )
+                        except Exception as exc:
+                            failures += 1
+                            detail = replace(
+                                listing,
+                                data_warnings=listing.data_warnings + [
+                                    f"樂屋詳情頁讀取失敗：{type(exc).__name__}"
+                                ],
+                            )
+                        cache[detail.external_id] = detail.to_dict()
+                        self._save_detail_cache(path, cache)
+                        results.append(detail)
+                    context.storage_state(path=str(state_path))
+                finally:
+                    context.close()
+                    browser.close()
+
+        order = {item.external_id: index for index, item in enumerate(selected)}
+        results.sort(key=lambda item: order[item.external_id])
+        self.detail_stats = {
+            "requested": len(selected),
+            "cache_hits": cache_hits,
+            "network_requests": len(uncached),
+            "failures": failures,
+            "duration_seconds": round(time.time() - started, 1),
+        }
+        return results

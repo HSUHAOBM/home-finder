@@ -100,13 +100,15 @@ $env:RUN_BROWSER_E2E = "1"
 uv run pytest -q tests/test_browser_e2e.py
 ```
 
-執行樂屋網 3 頁獨立試爬（會開啟可見 Chrome，不會混入正式結果）：
+執行樂屋網 3 頁獨立試爬（預設把 Chrome 移到螢幕外背景執行，不會混入正式結果）：
 
 ```powershell
-uv run python -m home_finder.rakuya_pilot --pages 3
+uv run python -m home_finder.rakuya_pilot --pages 3 --details 12
 ```
 
-結果與保守重複率會寫入 `output/rakuya-pilot.json`。樂屋列表上的車位文案尚未經詳情頁核實，不會直接判定為平面車位。
+結果、保守重複率與優先候選的詳情驗證會寫入 `output/rakuya-pilot.json`。程式只替數字條件先過關的不同房屋讀取詳情；車位判定以詳情欄位為準。
+若要看著瀏覽器執行，可在命令後加上 `--show-browser`。背景模式仍使用正常 Chrome 以通過網站檢查，工作列圖示可能短暫出現。
+
 
 離線舊版 CLI 範例：
 

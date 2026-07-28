@@ -104,21 +104,79 @@ def compare_with_current(pilot: list[HomeListing], current: list[HomeListing]) -
     }
 
 
+def select_detail_candidates(
+    listings: list[HomeListing],
+    profile: dict[str, Any],
+    *,
+    max_details: int = 12,
+) -> list[HomeListing]:
+    selected: list[HomeListing] = []
+    seen_properties: set[tuple] = set()
+    minimum_ratio = float(profile.get("min_floor_ratio", 2 / 3))
+    for listing in listings:
+        if listing.main_area_ping is None or listing.main_area_ping < float(profile["min_main_area"]):
+            continue
+        if listing.rooms is None or listing.rooms < float(profile["min_rooms"]):
+            continue
+        if listing.age_years is None or listing.age_years > float(profile["preferred_max_age"]):
+            continue
+        if (
+            listing.current_floor is None
+            or not listing.total_floors
+            or listing.current_floor / listing.total_floors < minimum_ratio
+        ):
+            continue
+        key = duplicate_key(listing)
+        if key is not None and key in seen_properties:
+            continue
+        if key is not None:
+            seen_properties.add(key)
+        selected.append(listing)
+        if len(selected) >= max_details:
+            break
+    return selected
+
+
 def run_pilot(
     config_path: Path = DEFAULT_CONFIG,
     current_results_path: Path = DEFAULT_CURRENT_RESULTS,
     report_path: Path = DEFAULT_REPORT,
-    *, max_pages: int = 3, headless: bool = False,
+    *, max_pages: int = 3, max_details: int = 12, headless: bool = False,
+    show_browser: bool = False,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     settings = config["editable_criteria"]
     districts = list(settings["districts"])
-    max_price = float(settings["profiles"]["大樓公寓華廈"]["max_price"])
+    profile = settings["profiles"]["大樓公寓華廈"]
+    max_price = float(profile["max_price"])
     crawler = BrowserRakuyaPilotCrawler(
-        districts=districts, max_price=max_price, max_pages=max_pages, headless=headless
+        districts=districts, max_price=max_price, max_pages=max_pages, headless=headless,
+        background=not show_browser,
     )
     listings = crawler.fetch()
-    comparison = compare_with_current(listings, _load_current_listings(current_results_path))
+    current = _load_current_listings(current_results_path)
+    preliminary = compare_with_current(listings, current)
+    potential_ids = {
+        item["external_id"] for item in preliminary["potential_new"]
+    }
+    candidates = select_detail_candidates(
+        [item for item in listings if item.external_id in potential_ids],
+        profile,
+        max_details=max_details,
+    )
+    enriched = (
+        crawler.enrich_details(candidates, max_details=max_details)
+        if candidates else []
+    )
+    enriched_by_id = {item.external_id: item for item in enriched}
+    listings = [enriched_by_id.get(item.external_id, item) for item in listings]
+    comparison = compare_with_current(listings, current)
+    parking_counts = dict(Counter(
+        "flat" if item.parking_type and "平面" in item.parking_type
+        else "mechanical" if item.parking_type and "機械" in item.parking_type
+        else "none" if item.has_parking is False
+        else "unknown" for item in enriched
+    ))
     payload = {
         "generated_at": datetime.now(ZoneInfo("Asia/Taipei")).isoformat(),
         "mode": "pilot_only", "source": SOURCE_NAME,
@@ -127,6 +185,11 @@ def run_pilot(
             "property_types": ["公寓", "大樓/華廈"], "resale_only": True,
         },
         "crawl": crawler.stats,
+        "detail_validation": {
+            **crawler.detail_stats,
+            "selected_external_ids": [item.external_id for item in candidates],
+            "parking_counts": parking_counts,
+        },
         "comparison": comparison,
         "listings": [item.to_dict() for item in listings],
     }
@@ -138,9 +201,16 @@ def run_pilot(
 def main() -> None:
     parser = argparse.ArgumentParser(description="樂屋網 1–3 頁低頻試爬與重複率報告")
     parser.add_argument("--pages", type=int, default=3, choices=(1, 2, 3))
+    parser.add_argument("--details", type=int, default=12, choices=range(1, 16))
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--show-browser", action="store_true")
     args = parser.parse_args()
-    result = run_pilot(max_pages=args.pages, headless=args.headless)
+    result = run_pilot(
+        max_pages=args.pages,
+        max_details=args.details,
+        headless=args.headless,
+        show_browser=args.show_browser,
+    )
     crawl = result["crawl"]
     comparison = result["comparison"]
     print(f"樂屋頁面總數：{crawl['reported_total'] or '未取得'}")
@@ -153,6 +223,13 @@ def main() -> None:
     print(
         f"尚未命中：{comparison['potential_new_count']} 筆刊登／"
         f"{comparison['potential_new_distinct_property_count']} 間房"
+    )
+    detail = result["detail_validation"]
+    parking = detail["parking_counts"]
+    print(
+        f"詳情驗證：{detail['requested']} 間；"
+        f"平面 {parking.get('flat', 0)}、機械 {parking.get('mechanical', 0)}、"
+        f"無車位 {parking.get('none', 0)}、不明 {parking.get('unknown', 0)}"
     )
     print(f"報告：{DEFAULT_REPORT}")
 

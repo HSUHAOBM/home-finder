@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from home_finder.crawler_rakuya import BrowserRakuyaPilotCrawler, parse_rakuya_list_card
-from home_finder.rakuya_pilot import compare_with_current
+from home_finder.crawler_rakuya import (
+    BrowserRakuyaPilotCrawler,
+    parse_rakuya_detail_text,
+    parse_rakuya_list_card,
+)
+from home_finder.rakuya_pilot import compare_with_current, select_detail_candidates
 from home_finder.user_models import HomeListing
 
 
@@ -37,6 +41,107 @@ def test_rakuya_url_uses_all_configured_districts_and_page():
     assert "price=0~1150" in url
     assert "typecode=R1%2CR2" in url
     assert url.endswith("&page=2")
+
+
+def test_parse_rakuya_detail_prefers_structured_flat_parking_and_brand():
+    listing = parse_rakuya_list_card({
+        "href": "https://community.rakuya.com.tw/3142/sell/info?ehid=ABC",
+        "title": "紫京城兩房平車",
+        "text": (
+            "紫京城兩房平車\n三民區\n紫京城\n電梯大廈\n"
+            "2房2廳1衛\n20.4年\n14/15樓\n總建33.9坪\n"
+            "主建16.22坪\n1,100萬\n平面車位"
+        ),
+    })
+    detail = parse_rakuya_detail_text(
+        listing,
+        """
+高雄市三民區明誠一路
+類型
+住宅/電梯大廈
+主建物
+16.22坪
+車位
+有車位
+車位類型
+平面式車位
+永慶不動產-【加盟】美術願景店
+願景君箖不動產有限公司
+""",
+    )
+    assert detail.address == "高雄市三民區明誠一路"
+    assert detail.parking_type == "平面式車位"
+    assert detail.has_parking is True
+    assert detail.origin_source == "永慶不動產-【加盟】美術願景店"
+    assert detail.broker_name == "願景君箖不動產有限公司"
+    assert detail.data_warnings == []
+
+
+def test_detail_conflict_uses_mechanical_value_instead_of_flat_title():
+    listing = HomeListing(
+        source="樂屋網", external_id="R", title="廣告寫平車",
+        url="https://example.com", city="高雄市", district="三民區",
+        total_price_wan=1000, property_type="電梯大樓",
+        data_warnings=["樂屋列表提到「平車」，尚未讀取詳情確認車位型式"],
+    )
+    detail = parse_rakuya_detail_text(
+        listing, "車位\n有車位\n車位類型\n機械式車位"
+    )
+    assert detail.parking_type == "機械式車位"
+    assert "列表宣稱平面車位" in detail.data_warnings[0]
+
+
+def test_detail_does_not_treat_unrelated_company_as_broker():
+    listing = HomeListing(
+        source="樂屋網", external_id="R", title="測試",
+        url="https://example.com", city="高雄市", district="三民區",
+        total_price_wan=1000, property_type="電梯大樓",
+    )
+    detail = parse_rakuya_detail_text(
+        listing, "電動機車充電站大樂股份有限公司"
+    )
+    assert detail.broker_name is None
+
+
+def test_rakuya_browser_runs_offscreen_by_default():
+    crawler = BrowserRakuyaPilotCrawler(
+        districts=["三民區"], max_price=1150, max_pages=1
+    )
+    options = crawler._launch_options()
+    assert options["headless"] is False
+    assert "--window-position=-32000,-32000" in options["args"]
+
+
+def test_show_browser_mode_does_not_move_window_offscreen():
+    crawler = BrowserRakuyaPilotCrawler(
+        districts=["三民區"], max_price=1150, max_pages=1,
+        background=False,
+    )
+    assert crawler._launch_options() == {"headless": False}
+
+
+def test_select_detail_candidates_filters_numeric_requirements_and_deduplicates():
+    profile = {
+        "min_main_area": 15,
+        "min_rooms": 2,
+        "preferred_max_age": 35,
+        "min_floor_ratio": 2 / 3,
+    }
+    base = {
+        "source": "樂屋網", "title": "候選", "city": "高雄市",
+        "district": "三民區", "total_price_wan": 1000,
+        "property_type": "電梯大樓", "main_area_ping": 16,
+        "rooms": 2, "age_years": 20, "current_floor": 10,
+        "total_floors": 12, "community": "同社區",
+    }
+    first = HomeListing(external_id="1", url="https://example.com/1", **base)
+    duplicate_ad = HomeListing(external_id="2", url="https://example.com/2", **base)
+    too_low = HomeListing(
+        external_id="3", url="https://example.com/3",
+        **{**base, "community": "另一社區", "current_floor": 2},
+    )
+    selected = select_detail_candidates([first, duplicate_ad, too_low], profile)
+    assert [item.external_id for item in selected] == ["1"]
 
 
 def test_compare_with_current_uses_conservative_physical_key():
