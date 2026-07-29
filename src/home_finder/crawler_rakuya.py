@@ -17,6 +17,8 @@ SOURCE_NAME = "樂屋網"
 BASE_URL = "https://www.rakuya.com.tw/sell/result"
 DETAIL_CACHE_PATH = Path("data/cache/rakuya_details.json")
 DETAIL_CACHE_TTL_SECONDS = 24 * 60 * 60
+DETAIL_CACHE_SCHEMA_VERSION = 2
+DETAIL_PARSER_VERSION = 2
 DISTRICT_ZIPCODES = {
     "三民區": "807", "左營區": "813", "楠梓區": "811",
     "橋頭區": "825", "仁武區": "814", "大社區": "815",
@@ -186,6 +188,7 @@ class BrowserRakuyaPilotCrawler:
     def __init__(
         self, districts: list[str], max_price: float, max_pages: int = 3,
         delay_seconds: float = 3.0, headless: bool = False, background: bool = True,
+        balanced_districts: bool = False,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         unsupported = [value for value in districts if value not in DISTRICT_ZIPCODES]
@@ -200,6 +203,7 @@ class BrowserRakuyaPilotCrawler:
         self.max_pages = max_pages
         self.delay_seconds = delay_seconds
         self.background = background
+        self.balanced_districts = balanced_districts
         self.headless = headless
         self.sleep = sleep
         self.stats: dict[str, Any] = {}
@@ -216,14 +220,27 @@ class BrowserRakuyaPilotCrawler:
         return options
 
 
-    def _list_url(self, page_number: int) -> str:
+    def _list_url(
+        self, page_number: int, districts: list[str] | None = None
+    ) -> str:
+        selected_districts = districts or self.districts
         query = {
-            "zipcode": ",".join(DISTRICT_ZIPCODES[value] for value in self.districts),
+            "zipcode": ",".join(
+                DISTRICT_ZIPCODES[value] for value in selected_districts
+            ),
             "agetype": "O", "price": f"0~{self.max_price:g}", "typecode": "R1,R2",
         }
         if page_number > 1:
             query["page"] = str(page_number)
         return f"{BASE_URL}?{urlencode(query)}"
+
+    def _request_plan(self) -> list[tuple[list[str], int]]:
+        if self.balanced_districts:
+            return [([district], 1) for district in self.districts]
+        return [
+            (self.districts, page_number)
+            for page_number in range(1, self.max_pages + 1)
+        ]
 
     @staticmethod
     def _challenge_message(page) -> str | None:
@@ -276,6 +293,9 @@ class BrowserRakuyaPilotCrawler:
         seen: set[str] = set()
         page_counts: list[int] = []
         result_total: int | None = None
+        request_plan = self._request_plan()
+        request_details: list[dict[str, Any]] = []
+        district_counts = {district: 0 for district in self.districts}
         with sync_playwright() as playwright:
             state_path = Path("data/cache/rakuya_storage_state.json").resolve()
             try:
@@ -288,12 +308,23 @@ class BrowserRakuyaPilotCrawler:
             context = browser.new_context(**context_options)
             try:
                 page = context.new_page()
-                for page_number in range(1, self.max_pages + 1):
-                    if page_number > 1:
+                for request_index, request in enumerate(request_plan):
+                    request_districts, page_number = request
+                    if request_index:
                         self.sleep(self.delay_seconds)
-                    page.goto(self._list_url(page_number), wait_until="domcontentloaded", timeout=30000)
+                    page.goto(
+                        self._list_url(page_number, request_districts),
+                        wait_until="domcontentloaded",
+                        timeout=30000,
+                    )
                     page.wait_for_timeout(4000)
                     page_listings, current_total = self._read_page(page)
+                    request_detail: dict[str, Any] = {
+                        "districts": request_districts,
+                        "page_number": page_number,
+                    }
+                    if current_total is not None:
+                        request_detail["reported_total"] = current_total
                     if result_total is None:
                         result_total = current_total
                     added = 0
@@ -303,33 +334,101 @@ class BrowserRakuyaPilotCrawler:
                         seen.add(listing.external_id)
                         fetched.append(listing)
                         added += 1
+                        district_counts[listing.district] += 1
                     page_counts.append(added)
+                    request_detail["unique_added"] = added
+                    request_details.append(request_detail)
                 context.storage_state(path=str(state_path))
             finally:
                 context.close()
                 browser.close()
+        district_totals = {
+            item["districts"][0]: item["reported_total"]
+            for item in request_details
+            if len(item["districts"]) == 1
+            and item.get("reported_total") is not None
+        }
+        if self.balanced_districts and district_totals:
+            result_total = sum(district_totals.values())
         self.stats = {
-            "source": SOURCE_NAME, "pages_requested": self.max_pages,
+            "source": SOURCE_NAME, "pages_requested": len(request_plan),
+            "configured_combined_pages": self.max_pages,
+            "sampling_mode": (
+                "one_page_per_district" if self.balanced_districts else "combined"
+            ),
             "page_unique_counts": page_counts, "fetched": len(fetched),
-            "reported_total": result_total, "headless": self.headless, "background": self.background,
+            "request_details": request_details,
+            "district_unique_counts": district_counts,
+            "district_reported_totals": district_totals,
+            "reported_total": result_total,
+            "headless": self.headless,
+            "background": self.background,
             "duration_seconds": round(time.time() - started, 1),
         }
         return fetched
 
     @staticmethod
-    def _load_detail_cache(cache_path: Path) -> dict[str, dict[str, Any]]:
+    def _load_detail_cache(cache_path: Path) -> dict[str, Any]:
         if not cache_path.exists():
-            return {}
-        if time.time() - cache_path.stat().st_mtime >= DETAIL_CACHE_TTL_SECONDS:
-            return {}
+            return {"schema_version": DETAIL_CACHE_SCHEMA_VERSION, "entries": {}}
         payload = json.loads(cache_path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("樂屋詳情快取格式錯誤；原檔已保留")
-        return payload
+
+        if payload.get("schema_version") == DETAIL_CACHE_SCHEMA_VERSION:
+            entries = payload.get("entries")
+            if not isinstance(entries, dict):
+                raise ValueError("樂屋詳情快取 entries 格式錯誤；原檔已保留")
+            return payload
+
+        if all(isinstance(value, dict) for value in payload.values()):
+            legacy_time = cache_path.stat().st_mtime
+            return {
+                "schema_version": DETAIL_CACHE_SCHEMA_VERSION,
+                "entries": {
+                    external_id: {
+                        "fetched_at": legacy_time,
+                        "parser_version": 1,
+                        "listing": listing,
+                    }
+                    for external_id, listing in payload.items()
+                },
+            }
+        raise ValueError("樂屋詳情快取格式錯誤；原檔已保留")
+
+    @staticmethod
+    def _cached_detail(
+        payload: dict[str, Any], external_id: str, *, now: float | None = None
+    ) -> dict[str, Any] | None:
+        entry = payload.get("entries", {}).get(external_id)
+        if not isinstance(entry, dict):
+            return None
+        fetched_at = entry.get("fetched_at")
+        listing = entry.get("listing")
+        if (
+            entry.get("parser_version") != DETAIL_PARSER_VERSION
+            or not isinstance(fetched_at, (int, float))
+            or not isinstance(listing, dict)
+        ):
+            return None
+        age = (time.time() if now is None else now) - float(fetched_at)
+        if age < 0 or age >= DETAIL_CACHE_TTL_SECONDS:
+            return None
+        return listing
+
+    @staticmethod
+    def _store_cached_detail(
+        payload: dict[str, Any], detail: HomeListing, *, fetched_at: float | None = None
+    ) -> None:
+        payload.setdefault("entries", {})[detail.external_id] = {
+            "fetched_at": time.time() if fetched_at is None else fetched_at,
+            "parser_version": DETAIL_PARSER_VERSION,
+            "listing": detail.to_dict(),
+        }
 
     @staticmethod
     def _save_detail_cache(
-        cache_path: Path, payload: dict[str, dict[str, Any]]
+        cache_path: Path, payload: dict[str, Any]
     ) -> None:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = cache_path.with_suffix(".tmp")
@@ -342,7 +441,7 @@ class BrowserRakuyaPilotCrawler:
         self,
         listings: list[HomeListing],
         *,
-        max_details: int = 12,
+        max_details: int = 15,
         cache_path: str | Path = DETAIL_CACHE_PATH,
     ) -> list[HomeListing]:
         if not 1 <= max_details <= 15:
@@ -352,12 +451,18 @@ class BrowserRakuyaPilotCrawler:
         cache = self._load_detail_cache(path)
         selected = listings[:max_details]
         results: list[HomeListing] = []
-        uncached = [item for item in selected if item.external_id not in cache]
+        cached_payloads = {
+            item.external_id: self._cached_detail(cache, item.external_id)
+            for item in selected
+        }
+        uncached = [
+            item for item in selected if cached_payloads[item.external_id] is None
+        ]
         cache_hits = len(selected) - len(uncached)
         failures = 0
 
         for listing in selected:
-            cached = cache.get(listing.external_id)
+            cached = cached_payloads[listing.external_id]
             if cached:
                 detail = HomeListing.from_dict(cached)
                 if detail.broker_name and not any(
@@ -413,7 +518,9 @@ class BrowserRakuyaPilotCrawler:
                                     f"樂屋詳情頁讀取失敗：{type(exc).__name__}"
                                 ],
                             )
-                        cache[detail.external_id] = detail.to_dict()
+                            results.append(detail)
+                            continue
+                        self._store_cached_detail(cache, detail)
                         self._save_detail_cache(path, cache)
                         results.append(detail)
                     context.storage_state(path=str(state_path))

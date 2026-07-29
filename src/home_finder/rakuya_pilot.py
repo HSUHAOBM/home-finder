@@ -108,9 +108,10 @@ def select_detail_candidates(
     listings: list[HomeListing],
     profile: dict[str, Any],
     *,
-    max_details: int = 12,
+    max_details: int = 15,
 ) -> list[HomeListing]:
-    selected: list[HomeListing] = []
+    district_order: list[str] = []
+    eligible_by_district: dict[str, list[HomeListing]] = {}
     seen_properties: set[tuple] = set()
     minimum_ratio = float(profile.get("min_floor_ratio", 2 / 3))
     for listing in listings:
@@ -131,9 +132,25 @@ def select_detail_candidates(
             continue
         if key is not None:
             seen_properties.add(key)
-        selected.append(listing)
-        if len(selected) >= max_details:
+        if listing.district not in eligible_by_district:
+            district_order.append(listing.district)
+            eligible_by_district[listing.district] = []
+        eligible_by_district[listing.district].append(listing)
+
+    selected: list[HomeListing] = []
+    index = 0
+    while len(selected) < max_details:
+        added = False
+        for district in district_order:
+            candidates = eligible_by_district[district]
+            if index < len(candidates):
+                selected.append(candidates[index])
+                added = True
+                if len(selected) >= max_details:
+                    break
+        if not added:
             break
+        index += 1
     return selected
 
 
@@ -141,8 +158,8 @@ def run_pilot(
     config_path: Path = DEFAULT_CONFIG,
     current_results_path: Path = DEFAULT_CURRENT_RESULTS,
     report_path: Path = DEFAULT_REPORT,
-    *, max_pages: int = 3, max_details: int = 12, headless: bool = False,
-    show_browser: bool = False,
+    *, max_pages: int = 3, max_details: int = 15, headless: bool = False,
+    show_browser: bool = False, balanced_districts: bool = True,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     settings = config["editable_criteria"]
@@ -152,6 +169,7 @@ def run_pilot(
     crawler = BrowserRakuyaPilotCrawler(
         districts=districts, max_price=max_price, max_pages=max_pages, headless=headless,
         background=not show_browser,
+        balanced_districts=balanced_districts,
     )
     listings = crawler.fetch()
     current = _load_current_listings(current_results_path)
@@ -199,21 +217,28 @@ def run_pilot(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="樂屋網 1–3 頁低頻試爬與重複率報告")
+    parser = argparse.ArgumentParser(description="樂屋網六區平衡低頻試爬與重複率報告")
     parser.add_argument("--pages", type=int, default=3, choices=(1, 2, 3))
-    parser.add_argument("--details", type=int, default=12, choices=range(1, 16))
+    parser.add_argument("--details", type=int, default=15, choices=range(1, 16))
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--show-browser", action="store_true")
+    parser.add_argument("--combined-districts", action="store_true")
     args = parser.parse_args()
     result = run_pilot(
         max_pages=args.pages,
         max_details=args.details,
         headless=args.headless,
         show_browser=args.show_browser,
+        balanced_districts=not args.combined_districts,
     )
     crawl = result["crawl"]
     comparison = result["comparison"]
     print(f"樂屋頁面總數：{crawl['reported_total'] or '未取得'}")
+    district_counts = crawl.get("district_unique_counts") or {}
+    if district_counts:
+        print("行政區取樣：" + "、".join(
+            f"{district} {count}" for district, count in district_counts.items()
+        ))
     print(f"試爬唯一刊登：{crawl['fetched']} 筆")
     print(f"保守估計不同房屋：{comparison['pilot_distinct_property_count']} 間")
     print(

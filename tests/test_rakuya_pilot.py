@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from home_finder.crawler_rakuya import (
     BrowserRakuyaPilotCrawler,
+    DETAIL_PARSER_VERSION,
     parse_rakuya_detail_text,
     parse_rakuya_list_card,
 )
@@ -41,6 +42,47 @@ def test_rakuya_url_uses_all_configured_districts_and_page():
     assert "price=0~1150" in url
     assert "typecode=R1%2CR2" in url
     assert url.endswith("&page=2")
+
+
+def test_balanced_rakuya_plan_requests_each_district_once():
+    crawler = BrowserRakuyaPilotCrawler(
+        districts=["三民區", "橋頭區", "大社區"],
+        max_price=1150,
+        max_pages=3,
+        balanced_districts=True,
+    )
+    assert crawler._request_plan() == [
+        (["三民區"], 1),
+        (["橋頭區"], 1),
+        (["大社區"], 1),
+    ]
+    assert "zipcode=825" in crawler._list_url(1, ["橋頭區"])
+
+
+def test_detail_cache_uses_each_entry_timestamp_and_parser_version():
+    cache = {
+        "schema_version": 2,
+        "entries": {
+            "fresh": {
+                "fetched_at": 1000,
+                "parser_version": DETAIL_PARSER_VERSION,
+                "listing": {"external_id": "fresh"},
+            },
+            "expired": {
+                "fetched_at": 1000,
+                "parser_version": DETAIL_PARSER_VERSION,
+                "listing": {"external_id": "expired"},
+            },
+            "old-parser": {
+                "fetched_at": 2000,
+                "parser_version": DETAIL_PARSER_VERSION - 1,
+                "listing": {"external_id": "old-parser"},
+            },
+        },
+    }
+    assert BrowserRakuyaPilotCrawler._cached_detail(cache, "fresh", now=1001)
+    assert BrowserRakuyaPilotCrawler._cached_detail(cache, "expired", now=100000) is None
+    assert BrowserRakuyaPilotCrawler._cached_detail(cache, "old-parser", now=2001) is None
 
 
 def test_parse_rakuya_detail_prefers_structured_flat_parking_and_brand():
@@ -142,6 +184,38 @@ def test_select_detail_candidates_filters_numeric_requirements_and_deduplicates(
     )
     selected = select_detail_candidates([first, duplicate_ad, too_low], profile)
     assert [item.external_id for item in selected] == ["1"]
+
+
+def test_detail_candidates_round_robin_across_districts():
+    base = {
+        "source": "樂屋網", "title": "候選", "city": "高雄市",
+        "total_price_wan": 1000, "property_type": "電梯大樓",
+        "main_area_ping": 16, "rooms": 2, "age_years": 20,
+        "current_floor": 10, "total_floors": 12,
+    }
+    listings = [
+        HomeListing(
+            external_id="S1", url="https://example.com/S1",
+            district="三民區", community="甲",
+            **base,
+        ),
+        HomeListing(
+            external_id="S2", url="https://example.com/S2",
+            district="三民區", community="乙",
+            **base,
+        ),
+        HomeListing(
+            external_id="Q1", url="https://example.com/Q1",
+            district="橋頭區", community="丙",
+            **base,
+        ),
+    ]
+    selected = select_detail_candidates(
+        listings,
+        {"min_main_area": 15, "min_rooms": 2, "preferred_max_age": 35},
+        max_details=2,
+    )
+    assert [item.external_id for item in selected] == ["S1", "Q1"]
 
 
 def test_compare_with_current_uses_conservative_physical_key():
