@@ -36,3 +36,29 @@
 .lifecycle.updated { background: #dce6f0; color: #3d5e85; }
 .lifecycle.seen { background: #ece8dc; color: #6d644d; }
 .lifecycle.possibly_removed { background: var(--brick-soft); color: var(--brick); }
+
+.change-details {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #b8cde1;
+  border-radius: 10px;
+  background: #eef5fb;
+  color: #334f69;
+  font-size: 0.8rem;
+}
+
+.change-details strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.change-details ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.change-details.unavailable {
+  border-color: var(--line);
+  background: #f3f2ee;
+  color: var(--muted);
+}

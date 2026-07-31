@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -70,13 +71,33 @@ def test_history_marks_new_seen_and_updated(tmp_path):
     assert seen.lifecycle_status == "seen"
     assert seen.first_seen_at == first.first_seen_at
 
-    updated = annotate_history(
+    relative_text_only = annotate_history(
         [listing(listing_updated_text="1分鐘前更新")],
         path=path,
 
         now=first_time + timedelta(hours=2),
     )[0]
+    assert relative_text_only.lifecycle_status == "seen"
+    assert relative_text_only.change_details == []
+
+    updated = annotate_history(
+        [listing(total_price_wan=950, listing_updated_text="剛剛更新")],
+        path=path,
+        now=first_time + timedelta(hours=3),
+    )[0]
     assert updated.lifecycle_status == "updated"
+    assert updated.change_details == ["總價：1000 萬 → 950 萬"]
+
+
+
+def test_update_label_ui_shows_actual_change_details():
+    static_dir = Path(__file__).parents[1] / "src" / "home_finder" / "static"
+    script = (static_dir / "dashboard_v4.js").read_text(encoding="utf-8")
+    stylesheet = (static_dir / "dashboard_v4.css").read_text(encoding="utf-8")
+    assert "這次實際變更" in script
+    assert "舊版更新紀錄" in script
+    assert "change_details" in script
+    assert ".change-details" in stylesheet
 
 
 def test_history_keeps_same_external_id_from_different_sources(tmp_path):

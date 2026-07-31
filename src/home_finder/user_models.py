@@ -39,6 +39,7 @@ class HomeListing:
     first_seen_at: str | None = None
     last_seen_at: str | None = None
     lifecycle_status: str | None = None
+    change_details: list[str] = field(default_factory=list)
     origin_source: str | None = None
     origin_external_id: str | None = None
     broker_name: str | None = None

@@ -68,7 +68,7 @@ def test_favorite_persists_after_listing_leaves_current_results(tmp_path, monkey
     assert added.get_json()["summary"]["favorites"] == 1
 
     saved = json.loads(favorites_path.read_text(encoding="utf-8"))
-    assert saved["version"] == 1
+    assert saved["version"] == 2
     current_card = added.get_json()["groups"]["exact_match"][0]
     assert current_card["is_favorite"] is True
     assert current_card["favorite_is_current"] is True
@@ -91,6 +91,60 @@ def test_favorite_persists_after_listing_leaves_current_results(tmp_path, monkey
     assert removed.status_code == 200
     assert removed.get_json()["favorites"] == []
     assert json.loads(favorites_path.read_text(encoding="utf-8"))["items"] == []
+
+
+def test_favorite_keeps_price_and_parking_change_history(tmp_path, monkeypatch):
+    results_path = tmp_path / "current-results.json"
+    favorites_path = tmp_path / "favorites.json"
+    write_result_records(results_path, [result_record()])
+    monkeypatch.setattr(web_app_v8.base, "RESULTS_PATH", results_path)
+    monkeypatch.setattr(web_app_v8, "FAVORITES_PATH", favorites_path)
+    monkeypatch.setattr(
+        web_app_v8.base,
+        "_iso_now",
+        lambda: "2026-07-24T10:00:00+00:00",
+    )
+    client = web_app_v8.app.test_client()
+    added = client.post(
+        "/api/favorites",
+        json={"source": "591中古屋", "id": "favorite-1", "action": "add"},
+    )
+    assert added.status_code == 200
+
+    changed = result_record()
+    changed["listing"]["total_price_wan"] = 998
+    changed["listing"]["parking_type"] = "機械式"
+    changed["listing"]["last_seen_at"] = "2026-07-24T11:00:00+00:00"
+    write_result_records(results_path, [changed])
+
+    payload = web_app_v8.load_dashboard_payload()
+    favorite = payload["favorites"][0]
+    assert favorite["favorite_changes"] == [
+        "總價：1088 萬 → 998 萬",
+        "車位：平面式 → 機械式",
+    ]
+    assert favorite["favorite_change_detected_at"] == "2026-07-24T10:00:00+00:00"
+
+    saved = json.loads(favorites_path.read_text(encoding="utf-8"))
+    assert saved["items"][0]["price"] == 998
+    assert len(saved["items"][0]["change_history"]) == 1
+
+    payload_again = web_app_v8.load_dashboard_payload()
+    assert len(payload_again["favorites"][0]["favorite_change_history"]) == 1
+    saved_again = json.loads(favorites_path.read_text(encoding="utf-8"))
+    assert len(saved_again["items"][0]["change_history"]) == 1
+
+    changed_again = result_record()
+    changed_again["listing"]["total_price_wan"] = 980
+    changed_again["listing"]["parking_type"] = "機械式"
+    changed_again["listing"]["last_seen_at"] = "2026-07-24T12:00:00+00:00"
+    write_result_records(results_path, [changed_again])
+
+    second_change = web_app_v8.load_dashboard_payload()["favorites"][0]
+    assert second_change["favorite_changes"] == ["總價：998 萬 → 980 萬"]
+    assert len(second_change["favorite_change_history"]) == 2
+    saved_second = json.loads(favorites_path.read_text(encoding="utf-8"))
+    assert len(saved_second["items"][0]["change_history"]) == 2
 
 
 def test_favorite_api_rejects_unknown_listing(tmp_path, monkeypatch):
@@ -139,3 +193,6 @@ def test_v8_page_and_assets_expose_favorite_controls():
     assert "favorite-toggle" in script
     assert 'fetch("/api/favorites"' in script
     assert "favorite_saved_at" in script
+    assert "favorite_changes" in script
+    assert "收藏後最近變動" in script
+    assert "查看全部" in script

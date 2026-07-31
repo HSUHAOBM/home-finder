@@ -81,6 +81,19 @@ function dateText(value) {
   try { return new Date(value).toLocaleString("zh-TW"); } catch { return value; }
 }
 
+function listingChangesV4(item) {
+  const changes = item.change_details || [];
+  if (!changes.length) {
+    return item.lifecycle_status === "updated"
+      ? '<div class="change-details unavailable">這是舊版更新紀錄，當時尚未保存欄位差異；下次搜尋後會開始列出實際變更。</div>'
+      : "";
+  }
+  return `<div class="change-details">
+    <strong>這次實際變更 ${changes.length} 項</strong>
+    <ul>${changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
+  </div>`;
+}
+
 const previousListingCard = listingCard;
 listingCard = function listingCardV4(item) {
   const html = previousListingCard(item);
@@ -89,7 +102,7 @@ listingCard = function listingCardV4(item) {
     <span>${escapeHtml(item.listing_updated_text || "591 未提供更新文字")}</span>
     <span>首次發現：${escapeHtml(dateText(item.first_seen_at))}</span>
   </div>`;
-  return html.replace("<h2>", `${tracking}<h2>`);
+  return html.replace("<h2>", `${tracking}${listingChangesV4(item)}<h2>`);
 };
 
 const previousRenderNavigation = renderNavigation;

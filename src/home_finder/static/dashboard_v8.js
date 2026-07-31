@@ -37,10 +37,31 @@ function favoriteTrackingV8(item) {
   const availability = item.favorite_is_current
     ? "目前結果仍保留"
     : "目前搜尋結果未出現，保留收藏快照";
+  const changes = item.favorite_changes || [];
+  const history = item.favorite_change_history || [];
+  const olderHistory = history.slice(0, -1).reverse();
+  const historySummary = olderHistory.length
+    ? `<details class="favorite-change-history">
+        <summary>查看全部 ${history.length} 次收藏變動</summary>
+        ${olderHistory.map((entry) => `<div class="favorite-change-event">
+          <strong>${escapeHtml(dateText(entry.detected_at))}</strong>
+          <ul>${(entry.changes || []).map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
+        </div>`).join("")}
+      </details>`
+    : "";
+  const changeSummary = changes.length
+    ? `<div class="favorite-change-summary">
+        <strong>收藏後最近變動 ${changes.length} 項</strong>
+        <span>發現於：${escapeHtml(dateText(item.favorite_change_detected_at))}</span>
+        <ul>${changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
+        ${historySummary}
+      </div>`
+    : "";
   return `<div class="favorite-tracking ${item.favorite_is_current ? "current" : "stale"}">
     <strong>${escapeHtml(availability)}</strong>
     <span>收藏於：${escapeHtml(dateText(item.favorite_saved_at))}</span>
     <span>最近看到：${escapeHtml(dateText(item.favorite_last_seen_at))}</span>
+    ${changeSummary}
   </div>`;
 }
 

@@ -185,6 +185,7 @@ def _card(record: dict) -> dict:
         first_seen_at=listing.get("first_seen_at"),
         last_seen_at=listing.get("last_seen_at"),
         lifecycle_status=listing.get("lifecycle_status"),
+        change_details=listing.get("change_details", []),
     )
     return card
 

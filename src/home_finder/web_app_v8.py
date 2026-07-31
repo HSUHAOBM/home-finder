@@ -40,7 +40,7 @@ def _load_favorite_items(path: Path | None = None) -> list[dict[str, Any]]:
 
 
 def _write_favorite_items(items: list[dict[str, Any]]) -> None:
-    atomic_write_json(FAVORITES_PATH, {"version": 1, "items": items})
+    atomic_write_json(FAVORITES_PATH, {"version": 2, "items": items})
 
 
 def _current_cards(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -67,11 +67,77 @@ def _storage_snapshot(card: dict[str, Any], saved_at: str) -> dict[str, Any]:
         "favorite_saved_at",
         "favorite_last_seen_at",
         "favorite_is_current",
+        "favorite_changes",
+        "favorite_change_history",
+        "favorite_change_detected_at",
+        "change_history",
     ):
         snapshot.pop(field, None)
     snapshot["source"] = snapshot.get("source") or "591"
     snapshot["saved_at"] = saved_at
     return snapshot
+
+
+_FAVORITE_CHANGE_FIELDS = (
+    ("price", "總價", " 萬"),
+    ("parking", "車位", ""),
+    ("title", "標題", ""),
+    ("main_area", "主建物", " 坪"),
+    ("rooms", "房數", " 房"),
+    ("baths", "衛浴", " 衛"),
+    ("floor", "所在樓層", " 樓"),
+    ("total_floors", "總樓層", " 樓"),
+    ("age", "屋齡", " 年"),
+    ("district", "行政區", ""),
+)
+
+
+def _change_value(value: Any, suffix: str) -> str:
+    if value is None or value == "":
+        return "待確認"
+    if suffix:
+        try:
+            return f"{float(value):g}{suffix}"
+        except (TypeError, ValueError):
+            pass
+    return str(value)
+
+
+def _favorite_changes(
+    stored: dict[str, Any], current: dict[str, Any]
+) -> list[str]:
+    changes: list[str] = []
+    for field, label, suffix in _FAVORITE_CHANGE_FIELDS:
+        if field not in stored:
+            continue
+        before = stored.get(field)
+        after = current.get(field)
+        if before != after:
+            changes.append(
+                f"{label}：{_change_value(before, suffix)} → "
+                f"{_change_value(after, suffix)}"
+            )
+    return changes
+
+
+def _favorite_history(stored: dict[str, Any]) -> list[dict[str, Any]]:
+    history = stored.get("change_history", [])
+    if not isinstance(history, list):
+        return []
+    return [
+        copy.deepcopy(entry)
+        for entry in history
+        if isinstance(entry, dict) and isinstance(entry.get("changes"), list)
+    ]
+
+
+def _decorate_favorite_changes(
+    card: dict[str, Any], history: list[dict[str, Any]]
+) -> None:
+    card["favorite_change_history"] = copy.deepcopy(history)
+    latest = history[-1] if history else {}
+    card["favorite_changes"] = copy.deepcopy(latest.get("changes", []))
+    card["favorite_change_detected_at"] = latest.get("detected_at")
 
 
 def _decorate_with_favorites(
@@ -101,10 +167,21 @@ def _decorate_with_favorites(
         key = _favorite_key(stored.get("source"), stored.get("id"))
         saved_at = str(stored.get("saved_at") or base._iso_now())
         current_card = current.get(key)
+        history = _favorite_history(stored)
         if current_card:
+            changes = _favorite_changes(stored, current_card)
+            if changes:
+                history.append({
+                    "detected_at": base._iso_now(),
+                    "changes": changes,
+                })
+                history = history[-50:]
             stored_card = _storage_snapshot(current_card, saved_at)
+            if history:
+                stored_card["change_history"] = history
             changed = changed or stored_card != stored
             refreshed.append(stored_card)
+            _decorate_favorite_changes(current_card, history)
             card = copy.deepcopy(current_card)
             card["favorite_is_current"] = True
         else:
@@ -112,6 +189,7 @@ def _decorate_with_favorites(
             card = copy.deepcopy(stored)
             card.pop("saved_at", None)
             card["favorite_is_current"] = False
+            _decorate_favorite_changes(card, history)
         card["is_favorite"] = True
         card["favorite_saved_at"] = saved_at
         card["favorite_last_seen_at"] = card.get("last_seen_at")
@@ -184,6 +262,9 @@ def api_favorites_v8():
                 return jsonify({"error": "目前結果中找不到這筆房源，請重新整理後再試。"}), 404
             saved_at = str(existing.get(key, {}).get("saved_at") or base._iso_now())
             snapshot = _storage_snapshot(card, saved_at)
+            change_history = _favorite_history(existing.get(key, {}))
+            if change_history:
+                snapshot["change_history"] = change_history
             items = [
                 item
                 for item in items
