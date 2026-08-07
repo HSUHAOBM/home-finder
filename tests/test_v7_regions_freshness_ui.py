@@ -313,3 +313,17 @@ def test_development_launcher_reloads_service_and_browser_after_file_changes():
     assert "status.service_instance !== state.serviceInstance" in script
     assert "window.location.reload()" in script
     assert "--reload" in launcher
+
+
+def test_v7_script_supports_total_and_main_area_unit_price_sorting():
+    script = (
+        Path(web_app_v7.__file__).with_name("static") / "dashboard_v7.js"
+    ).read_text(encoding="utf-8")
+
+    assert 'value="total-unit-asc"' in script
+    assert 'value="total-unit-desc"' in script
+    assert 'value="main-unit-asc"' in script
+    assert 'value="main-unit-desc"' in script
+    assert 'numericSort("price_per_total_area")' in script
+    assert 'numericSort("price_per_main_area")' in script
+    assert "firstMissing ? 1 : -1" in script

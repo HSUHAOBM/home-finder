@@ -187,6 +187,7 @@ def test_v8_page_and_assets_expose_favorite_controls():
     static_dir = Path(web_app_v8.__file__).with_name("static")
     script = (static_dir / "dashboard_v8.js").read_text(encoding="utf-8")
 
+    assert 'resultSortV8.value === "favorite_saved"' in script
     assert "/static/dashboard_v8.css" in page
     assert "/static/dashboard_v8.js" in page
     assert "我的收藏" in script

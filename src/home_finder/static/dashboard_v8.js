@@ -24,7 +24,7 @@ selectFirstNonEmptyStatusV7 = function selectFirstNonEmptyStatusV8() {
 
 const previousSortItemsV8 = sortItemsV7;
 sortItemsV7 = function sortItemsV8(items) {
-  if (state.activeStatus === "favorites") {
+  if (state.activeStatus === "favorites" && resultSortV8.value === "favorite_saved") {
     return [...items].sort((a, b) =>
       String(b.favorite_saved_at || "").localeCompare(String(a.favorite_saved_at || ""))
     );

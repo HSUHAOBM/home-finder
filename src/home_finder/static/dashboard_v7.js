@@ -82,6 +82,10 @@ document.querySelector("#results").insertAdjacentHTML(
         <option value="failures">\u4e0d\u7b26\u5408\u9805\u76ee\uff08\u5c11\u5230\u591a\uff09</option>
         <option value="newest">最新發現</option>
         <option value="price">價格低到高</option>
+        <option value="total-unit-asc">權狀單價低到高</option>
+        <option value="total-unit-desc">權狀單價高到低</option>
+        <option value="main-unit-asc">主建單價低到高</option>
+        <option value="main-unit-desc">主建單價高到低</option>
         <option value="floor">樓層比例高到低</option>
       </select>
     </label>
@@ -130,8 +134,22 @@ function renderNearFailureFiltersV7(items) {
 function sortItemsV7(items) {
   const mode = document.querySelector("#result-sort").value;
   const copy = [...items];
+  const numericSort = (field, descending = false) => copy.sort((a, b) => {
+    const first = Number(a[field]);
+    const second = Number(b[field]);
+    const firstMissing = !Number.isFinite(first) || first <= 0;
+    const secondMissing = !Number.isFinite(second) || second <= 0;
+    if (firstMissing !== secondMissing) return firstMissing ? 1 : -1;
+    if (firstMissing) return (a.price || 999999) - (b.price || 999999);
+    return descending ? second - first : first - second;
+  });
+
   if (mode === "failures") return copy.sort((a, b) => (a.failures || []).length - (b.failures || []).length || failureCategoriesV7(a).join("\u3001").localeCompare(failureCategoriesV7(b).join("\u3001"), "zh-TW") || (b.metric_value || 0) - (a.metric_value || 0));
   if (mode === "price") return copy.sort((a, b) => (a.price || 999999) - (b.price || 999999));
+  if (mode === "total-unit-asc") return numericSort("price_per_total_area");
+  if (mode === "total-unit-desc") return numericSort("price_per_total_area", true);
+  if (mode === "main-unit-asc") return numericSort("price_per_main_area");
+  if (mode === "main-unit-desc") return numericSort("price_per_main_area", true);
   if (mode === "floor") return copy.sort((a, b) => ((b.floor || 0) / (b.total_floors || 999)) - ((a.floor || 0) / (a.total_floors || 999)));
   if (mode === "newest") return copy.sort((a, b) => String(b.first_seen_at || "").localeCompare(String(a.first_seen_at || "")));
   return copy.sort((a, b) => (b.metric_value || 0) - (a.metric_value || 0) || (a.price || 999999) - (b.price || 999999));
