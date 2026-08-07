@@ -33,47 +33,44 @@ def listing(external_id: str, district: str) -> HomeListing:
     )
 
 
-def test_five_districts_stay_in_one_batch():
-    districts = ["三民區", "左營區", "楠梓區", "橋頭區", "仁武區"]
-
-    assert crawler(districts)._district_batches() == [districts]
-
-
-def test_six_districts_are_balanced_into_two_batches():
+def test_each_district_uses_an_independent_search():
     districts = ["三民區", "左營區", "楠梓區", "橋頭區", "仁武區", "大社區"]
 
     assert crawler(districts)._district_batches() == [
-        ["三民區", "左營區", "楠梓區"],
-        ["橋頭區", "仁武區", "大社區"],
+        ["三民區"],
+        ["左營區"],
+        ["楠梓區"],
+        ["橋頭區"],
+        ["仁武區"],
+        ["大社區"],
     ]
 
 
-def test_all_districts_are_preserved_and_each_batch_stays_within_limit():
+def test_all_districts_are_preserved_as_single_district_queries():
     districts = [f"行政區{index}" for index in range(38)]
     batches = crawler(districts)._district_batches()
 
-    assert len(batches) == 8
-    assert all(len(batch) <= 5 for batch in batches)
+    assert len(batches) == 38
+    assert all(len(batch) == 1 for batch in batches)
     assert [district for batch in batches for district in batch] == districts
 
 
-def test_collect_candidates_fetches_every_batch_and_interleaves_results(monkeypatch):
-    districts = ["三民區", "左營區", "楠梓區", "橋頭區", "仁武區", "大社區"]
+def test_collect_candidates_fetches_every_district_and_interleaves_results(monkeypatch):
+    districts = ["三民區", "左營區", "楠梓區"]
     subject = crawler(districts)
     calls: list[list[str]] = []
 
     def fake_fetch(_context, batch):
         calls.append(batch)
         if batch[0] == "三民區":
-            return [listing("A", "三民區"), listing("DUP", "楠梓區")]
-        return [listing("B", "橋頭區"), listing("DUP", "大社區")]
+            return [listing("A", "三民區"), listing("DUP", "三民區")]
+        if batch[0] == "左營區":
+            return [listing("B", "左營區"), listing("DUP", "左營區")]
+        return [listing("C", "楠梓區")]
 
     monkeypatch.setattr(subject, "_fetch_batch_candidates", fake_fetch)
 
     results = subject._collect_candidates(object())
 
-    assert calls == [
-        ["三民區", "左營區", "楠梓區"],
-        ["橋頭區", "仁武區", "大社區"],
-    ]
-    assert [item.external_id for item in results] == ["A", "B", "DUP"]
+    assert calls == [["三民區"], ["左營區"], ["楠梓區"]]
+    assert [item.external_id for item in results] == ["A", "B", "C", "DUP"]

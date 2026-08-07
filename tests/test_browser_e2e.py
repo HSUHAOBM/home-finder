@@ -49,6 +49,8 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 )
 
                 page.goto(base_url, wait_until="networkidle")
+                expect(page.locator(".listing-import-panel")).to_be_visible()
+                expect(page.locator("#active-goal-title")).to_have_text("大樓・華廈")
 
                 acceptable = page.locator('.tab[data-status="acceptable"]')
                 expect(acceptable).to_have_class(re.compile(r"\bactive\b"))
@@ -73,6 +75,7 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 )
 
                 page.locator('[data-profile="預售屋"]').click()
+                expect(page.locator(".listing-import-panel")).to_be_hidden()
                 expect(pending).to_have_class(re.compile(r"\bactive\b"))
                 expect(page.locator("#results")).to_contain_text(
                     "E2E 待確認預售"

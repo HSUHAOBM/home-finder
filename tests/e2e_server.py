@@ -12,7 +12,7 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from home_finder import web_app_v7  # noqa: E402
+from home_finder import web_app_v7, web_app_v10  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
 
@@ -125,7 +125,8 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
     web_app_v7.SETTINGS_HISTORY_PATH = data_dir / "settings-history.json"
     try:
         write_result_records(web_app_v7.base.RESULTS_PATH, _records())
-        yield web_app_v7.app
+        web_app_v10.activate()
+        yield web_app_v10.app
     finally:
         (
             web_app_v7.base.RESULTS_PATH,

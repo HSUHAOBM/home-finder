@@ -20,7 +20,7 @@ BASE_URL = "https://buy.yungching.com.tw"
 DETAIL_CACHE_PATH = "data/cache/yungching_details.json"
 CACHE_TTL_SECONDS = 24 * 60 * 60
 PROFILE_TYPES = {
-    "大樓公寓華廈": {"電梯大樓", "華廈", "公寓"},
+    "大樓公寓華廈": {"電梯大樓", "華廈"},
     "透天別墅": {"透天厝", "別墅"},
 }
 PROPERTY_TYPES = tuple(sorted(set().union(*PROFILE_TYPES.values()), key=len, reverse=True))

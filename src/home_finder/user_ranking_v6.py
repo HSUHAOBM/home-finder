@@ -57,6 +57,8 @@ def evaluate_all(listings: list[HomeListing], settings: dict) -> list[Evaluation
     profiles: tuple[ProfileName, ...] = ("大樓公寓華廈", "透天別墅", "預售屋")
     results: list[Evaluation] = []
     for listing in listings:
+        if listing.property_type == "公寓":
+            continue
         for profile in profiles:
             result = evaluate_listing(listing, profile, settings)
             result.duplicate_ids = duplicates.get(duplicate_ref(listing), [])

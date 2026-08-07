@@ -51,7 +51,7 @@ def _crawl_for_mode_multi(
             districts=settings["districts"],
             max_pages=max_pages,
             max_details=max_details,
-            max_price=float(settings["profiles"][profile]["max_price"]),
+            max_price=float(source.get("collection_max_price", 1300)),
             delay_seconds=max(2.0, float(source.get("delay_seconds", 2))),
             headless=True,
         )

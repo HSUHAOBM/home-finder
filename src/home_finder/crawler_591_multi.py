@@ -4,7 +4,7 @@ import re
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode, urljoin, urlparse
 
 from playwright.sync_api import (
     BrowserContext,
@@ -13,21 +13,21 @@ from playwright.sync_api import (
     sync_playwright,
 )
 
-from .crawler_591_browser import parse_detail_text, parse_list_card
+from .crawler_591_browser import DETAIL_ID, FLOOR, LAYOUT, PRICE, parse_detail_text, parse_list_card
 from .crawler_591_browser_v3 import Browser591Crawler
 from .user_models import HomeListing
 
 
 PROFILE_SHAPES = {
-    "大樓公寓華廈": ("電梯大樓", "華廈", "公寓"),
+    "大樓公寓華廈": ("電梯大樓", "華廈"),
     "透天別墅": ("透天厝", "別墅"),
 }
 PROFILE_TYPES = {
-    "大樓公寓華廈": {"電梯大樓", "華廈", "公寓"},
+    "大樓公寓華廈": {"電梯大樓", "華廈"},
     "透天別墅": {"透天厝", "別墅"},
 }
 UPDATE_TEXT = re.compile(r"(?:剛剛|\d+\s*(?:分鐘|小時|天)前|今天|昨日|昨天)\s*更新")
-MAX_DISTRICTS_PER_SEARCH = 5
+COLLECTION_PRICE_BANDS = ("0_500", "500_750", "750_1000", "1000_1250", "1250_1500")
 
 
 class MultiPage591ResaleCrawler(Browser591Crawler):
@@ -38,6 +38,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         max_pages: int = 3,
         publish_days: int = 3,
         max_details: int = 50,
+        collection_max_price: float = 1300,
         **kwargs,
     ) -> None:
         super().__init__(districts=districts, max_details=max_details, **kwargs)
@@ -50,9 +51,13 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         self.profile = profile
         self.max_pages = max_pages
         self.publish_days = publish_days
+        self.collection_max_price = float(collection_max_price)
+        if self.collection_max_price <= 0:
+            raise ValueError("collection_max_price 必須大於 0")
+        self.stats: dict[str, object] = {}
 
-    def _select_shapes(self, page: Page) -> None:
-        for shape in PROFILE_SHAPES[self.profile]:
+    def _select_shapes(self, page: Page, shapes: tuple[str, ...] | None = None) -> None:
+        for shape in shapes or PROFILE_SHAPES[self.profile]:
             label = page.locator("label").filter(has_text=re.compile(rf"^\s*{re.escape(shape)}\s*$"))
             if label.count():
                 label.first.click()
@@ -94,7 +99,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             )
             if (
                 listing.district in self.districts
-                and listing.total_price_wan <= 1200
+                and listing.total_price_wan <= self.collection_max_price
                 and listing.property_type in PROFILE_TYPES[self.profile]
             ):
                 listings.append(listing)
@@ -123,22 +128,27 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         )
 
     def _district_batches(self) -> list[list[str]]:
-        batch_count = max(
-            1,
-            (len(self.districts) + MAX_DISTRICTS_PER_SEARCH - 1)
-            // MAX_DISTRICTS_PER_SEARCH,
-        )
-        batch_size, larger_batches = divmod(len(self.districts), batch_count)
-        batches: list[list[str]] = []
-        offset = 0
-        for index in range(batch_count):
-            size = batch_size + (1 if index < larger_batches else 0)
-            batches.append(self.districts[offset : offset + size])
-            offset += size
-        return batches
+        return [[district] for district in self.districts]
+
+    @staticmethod
+    def _interleave(groups: list[list[HomeListing]]) -> list[HomeListing]:
+        results: list[HomeListing] = []
+        seen: set[str] = set()
+        for item_index in range(max((len(group) for group in groups), default=0)):
+            for group in groups:
+                if item_index >= len(group):
+                    continue
+                listing = group[item_index]
+                if listing.external_id not in seen:
+                    seen.add(listing.external_id)
+                    results.append(listing)
+        return results
 
     def _fetch_batch_candidates(
-        self, context: BrowserContext, districts: list[str]
+        self, context: BrowserContext, districts: list[str], *,
+        price_band: str | None = None,
+        shapes: tuple[str, ...] | None = None,
+        allow_split: bool = True,
     ) -> list[HomeListing]:
         original_districts = self.districts
         self.districts = districts
@@ -147,16 +157,19 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             query = {"regionid": 17, "firstRow": 0, "shType": "list"}
             if self.publish_days:
                 query["publish_day"] = self.publish_days
+            if price_band:
+                query["price"] = price_band
             list_page.goto(
                 "https://sale.591.com.tw/?" + urlencode(query),
                 wait_until="domcontentloaded",
                 timeout=30000,
             )
             self._select_districts(list_page)
-            self._select_shapes(list_page)
+            self._select_shapes(list_page, shapes)
 
             candidates: list[HomeListing] = []
             seen: set[str] = set()
+            pages_scanned = 0
             for page_number in range(1, self.max_pages + 1):
                 if page_number > 1:
                     next_link = list_page.get_by_role("link", name="下一頁", exact=True)
@@ -176,10 +189,57 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 page_listings = self._read_profile_cards(list_page)
                 if not page_listings:
                     break
+                pages_scanned = page_number
                 for listing in page_listings:
                     if listing.external_id not in seen:
                         seen.add(listing.external_id)
                         candidates.append(listing)
+            next_link = list_page.get_by_role("link", name="下一頁", exact=True)
+            next_href = (
+                next_link.first.get_attribute("href") or ""
+                if next_link.count()
+                else ""
+            )
+            truncated = bool(next_href and pages_scanned >= self.max_pages)
+            queries = self.stats.setdefault("queries", [])
+            if isinstance(queries, list):
+                queries.append(
+                    {
+                        "districts": list(districts),
+                        "price_band": price_band,
+                        "shapes": list(shapes or PROFILE_SHAPES[self.profile]),
+                        "pages_scanned": pages_scanned,
+                        "candidates": len(candidates),
+                        "truncated": truncated,
+                        "unresolved": bool(truncated and not allow_split),
+                    }
+                )
+            if truncated and allow_split:
+                if price_band is None:
+                    return self._interleave(
+                        [
+                            self._fetch_batch_candidates(
+                                context,
+                                districts,
+                                price_band=band,
+                                allow_split=True,
+                            )
+                            for band in COLLECTION_PRICE_BANDS
+                        ]
+                    )
+                if shapes is None and len(PROFILE_SHAPES[self.profile]) > 1:
+                    return self._interleave(
+                        [
+                            self._fetch_batch_candidates(
+                                context,
+                                districts,
+                                price_band=price_band,
+                                shapes=(shape,),
+                                allow_split=False,
+                            )
+                            for shape in PROFILE_SHAPES[self.profile]
+                        ]
+                    )
             return candidates
         finally:
             self.districts = original_districts
@@ -204,6 +264,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         return candidates
 
     def fetch(self) -> list[HomeListing]:
+        self.stats = {"queries": []}
         cache = self._load_cache()
         with sync_playwright() as playwright, ExitStack() as cleanup:
             browser = self._launch(playwright)
@@ -237,4 +298,91 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 cache[item.external_id] = item.to_dict()
                 self._save_cache(cache)
             browser.close()
+        queries = self.stats.get("queries", [])
+        self.stats.update(
+            {
+                "source": "591",
+                "candidate_count": len(candidates),
+                "fetched": len(detailed),
+                "pages_requested": self.max_pages,
+                "publish_days": self.publish_days,
+                "collection_max_price": self.collection_max_price,
+                "query_count": len(queries),
+                "truncated_queries": sum(
+                    bool(item.get("truncated"))
+                    for item in queries
+                    if isinstance(item, dict)
+                ),
+                "unresolved_queries": sum(
+                    bool(item.get("unresolved"))
+                    for item in queries
+                    if isinstance(item, dict)
+                ),
+            }
+        )
         return detailed
+
+    def fetch_url(self, url: str) -> HomeListing:
+        parsed = urlparse(url)
+        id_match = DETAIL_ID.search(parsed.path)
+        if parsed.hostname != "sale.591.com.tw" or not id_match:
+            raise ValueError("請貼上有效的 591 中古屋房源網址")
+        canonical_url = (
+            "https://sale.591.com.tw/home/house/detail/2/"
+            f"{id_match.group('id')}.html"
+        )
+        with sync_playwright() as playwright, ExitStack() as cleanup:
+            browser = self._launch(playwright)
+            cleanup.callback(lambda: browser.is_connected() and browser.close())
+            page = browser.new_page(locale="zh-TW")
+            page.goto(canonical_url, wait_until="domcontentloaded", timeout=30000)
+            page.locator("body").wait_for(timeout=15000)
+            page.wait_for_timeout(1200)
+            body = page.locator("body").inner_text()
+            compact = re.sub(r"\s+", " ", body)
+            dense = re.sub(r"\s+", "", body)
+            title = page.locator("h1").first.inner_text().strip()
+            price = PRICE.search(body)
+            layout = LAYOUT.search(dense)
+            floor = FLOOR.search(dense)
+            district = re.search(r"高雄市\s*([^\s|>]{2,4}區)", compact)
+            total_area = re.search(
+                r"(?:權狀坪數|權狀)\s*([\d.]+)\s*坪", compact
+            )
+            age = re.search(r"屋齡\s*([\d.]+)\s*年", compact)
+            if not price or not layout or not district:
+                raise ValueError("591 詳情頁缺少價格、格局或行政區，無法加入")
+            listing = HomeListing(
+                source="591中古屋",
+                external_id=id_match.group("id"),
+                title=title or f"591 房源 {id_match.group('id')}",
+                url=canonical_url,
+                city="高雄市",
+                district=district.group(1),
+                total_price_wan=float(price.group("price").replace(",", "")),
+                total_area_ping=float(total_area.group(1)) if total_area else None,
+                rooms=float(layout.group("rooms")),
+                living_rooms=float(layout.group("living")),
+                baths=float(layout.group("baths")),
+                age_years=float(age.group(1)) if age else None,
+                current_floor=int(floor.group("current")) if floor else None,
+                total_floors=int(floor.group("total")) if floor else None,
+                search_profile=self.profile,
+            )
+            listing = parse_detail_text(listing, body)
+        if listing.district not in self.districts:
+            raise ValueError(
+                f"房源位於 {listing.district}，不在目前搜尋行政區"
+            )
+        if listing.property_type not in PROFILE_TYPES[self.profile]:
+            if listing.property_type == "公寓":
+                raise ValueError("公寓已依目前設定直接排除")
+            raise ValueError(
+                f"房屋型態 {listing.property_type or '不明'} 不屬於目前目標"
+            )
+        if listing.total_price_wan > self.collection_max_price:
+            raise ValueError(
+                f"總價 {listing.total_price_wan:g} 萬，超過蒐集上限 "
+                f"{self.collection_max_price:g} 萬"
+            )
+        return listing

@@ -258,7 +258,7 @@ def _crawl_for_mode(
     search = copy.deepcopy(settings["search"])
     if mode == "full":
         search["pages"] = 10
-        search["publish_days"] = 30
+        search["publish_days"] = 0
     delay = max(2.0, float(source.get("delay_seconds", 2)))
     started = time.time()
     if profile == "預售屋":
@@ -275,6 +275,7 @@ def _crawl_for_mode(
             max_pages=search["pages"],
             publish_days=search["publish_days"],
             max_details=search["resale_details"],
+            collection_max_price=float(source.get("collection_max_price", 1300)),
             delay_seconds=delay,
             headless=True,
         )
@@ -293,6 +294,8 @@ def _crawl_for_mode(
         "duration_seconds": round(time.time() - started, 1),
         "finished_at": datetime.now(timezone.utc).isoformat(),
     }
+    if hasattr(crawler, "stats"):
+        stats.update(crawler.stats)
     return listings, stats
 
 
