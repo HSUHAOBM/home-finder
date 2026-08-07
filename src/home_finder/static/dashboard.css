@@ -218,8 +218,10 @@ h1 {
 .score { color: var(--muted); font-size: 0.82rem; white-space: nowrap; }
 .listing-card h2 { margin: 12px 0 0; font-size: 1.17rem; line-height: 1.45; }
 
-.price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.price-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 18px; }
 .price { color: var(--green); font-family: "Noto Serif TC", serif; font-size: 1.55rem; font-weight: 800; }
+.unit-prices { display: flex; flex: 1; flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: .82rem; }
+.unit-prices span { border-bottom: 1px dotted currentColor; cursor: help; white-space: nowrap; }
 .district { color: var(--muted); }
 
 .facts {

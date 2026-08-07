@@ -99,6 +99,18 @@ def select_listing_results(records: list[dict[str, Any]]) -> list[dict[str, Any]
 
 def _card(record: dict[str, Any]) -> dict[str, Any]:
     listing = record["listing"]
+    price = listing.get("total_price_wan") or None
+    total_area = listing.get("total_area_ping")
+    main_area = listing.get("main_area_ping")
+
+    def unit_price(area: Any) -> float | None:
+        if price is None or area is None:
+            return None
+        try:
+            numeric_area = float(area)
+            return round(float(price) / numeric_area, 2) if numeric_area > 0 else None
+        except (TypeError, ValueError):
+            return None
     return {
         "id": listing.get("external_id"),
         "source": listing.get("source") or "591",
@@ -111,8 +123,11 @@ def _card(record: dict[str, Any]) -> dict[str, Any]:
         "title": listing.get("title"),
         "url": listing.get("url"),
         "district": listing.get("district"),
-        "price": listing.get("total_price_wan") or None,
-        "main_area": listing.get("main_area_ping"),
+        "price": price,
+        "total_area": total_area,
+        "main_area": main_area,
+        "price_per_total_area": unit_price(total_area),
+        "price_per_main_area": unit_price(main_area),
         "rooms": listing.get("rooms"),
         "baths": listing.get("baths"),
         "parking": listing.get("parking_type"),

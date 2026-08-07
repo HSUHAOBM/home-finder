@@ -15,6 +15,7 @@ def _record(external_id: str, profile: str, status: str, score: float = 50) -> d
             "deal_kind": "預售屋" if profile == "預售屋" else "中古屋",
             "property_type": "電梯大樓" if profile != "透天別墅" else "透天厝",
             "total_price_wan": 1100,
+            "total_area_ping": 30,
             "main_area_ping": 18,
             "rooms": 2,
             "baths": 2,
@@ -72,8 +73,27 @@ def test_results_api_returns_unique_listing_counts(tmp_path, monkeypatch):
     assert payload["summary"]["rejected"] == 0
 
 
+def test_card_includes_total_and_main_building_unit_prices():
+    card = web_app._card(_record("A", "profile", "qualified"))
+
+    assert card["total_area"] == 30
+    assert card["price_per_total_area"] == 36.67
+    assert card["price_per_main_area"] == 61.11
+
+
+def test_card_leaves_unit_price_unknown_when_area_is_missing_or_zero():
+    record = _record("A", "profile", "qualified")
+    record["listing"]["total_area_ping"] = 0
+    record["listing"]["main_area_ping"] = None
+
+    card = web_app._card(record)
+
+    assert card["price_per_total_area"] is None
+    assert card["price_per_main_area"] is None
+
+
 def test_homepage_has_search_button():
     response = web_app.app.test_client().get("/")
 
     assert response.status_code == 200
-    assert "開始重新搜尋" in response.get_data(as_text=True)
+    assert "\u958b\u59cb\u91cd\u65b0\u641c\u5c0b" in response.get_data(as_text=True)

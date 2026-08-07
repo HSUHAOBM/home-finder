@@ -56,11 +56,13 @@ function noteItems(item) {
 function listingCard(item) {
   const labels = { qualified: "直接符合", needs_verification: "待確認", rejected: "已排除" };
   const price = item.price ? `${number(item.price)} 萬` : "總價待確認";
+  const totalUnitPrice = number(item.price_per_total_area, " \u842c/\u576a");
+  const mainUnitPrice = number(item.price_per_main_area, " \u842c/\u576a");
   const failureCount = item.failures.length;
   const failures = item.status === "rejected" ? `<div class="failure-box"><strong>不符合必要條件（${failureCount || "未確認"} 項）</strong><ul>${(failureCount ? item.failures : ["未符合必要條件"]).map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul></div>` : "";
   return `<article class="listing-card ${item.status === "rejected" ? "rejected-card" : ""}">
     <div class="card-top"><span class="badge ${escapeHtml(item.status)}">${labels[item.status]}</span><span class="score">適合度 ${number(item.score)} 分</span></div>
-    <h2>${escapeHtml(item.title)}</h2><div class="price-row"><span class="price">${price}</span><span class="district">${escapeHtml(item.district)}</span></div>
+    <h2>${escapeHtml(item.title)}</h2><div class="price-row"><span class="price">${price}</span><div class="unit-prices"><span title="\u7e3d\u50f9 \u00f7 \u6b0a\u72c0\u7e3d\u576a\u6578\uff1b\u6b0a\u72c0\u576a\u6578\u901a\u5e38\u5305\u542b\u516c\u8a2d\uff0c\u4e5f\u53ef\u80fd\u5305\u542b\u8eca\u4f4d">\u6b0a\u72c0\u55ae\u50f9 ${totalUnitPrice}</span><span title="\u7e3d\u50f9 \u00f7 \u4e3b\u5efa\u7269\u576a\u6578\uff1b\u7e3d\u50f9\u82e5\u5305\u542b\u8eca\u4f4d\uff0c\u8a08\u7b97\u7d50\u679c\u4e5f\u5305\u542b\u8eca\u4f4d\u50f9\u683c\u5f71\u97ff">\u4e3b\u5efa\u55ae\u50f9 ${mainUnitPrice}</span></div><span class="district">${escapeHtml(item.district)}</span></div>
     <div class="facts"><div class="fact"><span>主建物</span><strong>${number(item.main_area, " 坪")}</strong></div><div class="fact"><span>格局</span><strong>${number(item.rooms, " 房")}・${number(item.baths, " 衛")}</strong></div><div class="fact"><span>樓層</span><strong>${floorText(item)}</strong></div><div class="fact"><span>屋齡</span><strong>${number(item.age, " 年")}</strong></div><div class="fact"><span>車位</span><strong>${escapeHtml(item.parking || "待確認")}</strong></div><div class="fact"><span>591 編號</span><strong>${escapeHtml(item.id)}</strong></div></div>
     ${failures}<ul class="notes">${noteItems(item)}</ul><a class="listing-link" href="${safeUrl(item.url)}" target="_blank" rel="noopener noreferrer">開啟原始 591 房源</a></article>`;
 }
