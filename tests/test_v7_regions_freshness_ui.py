@@ -327,3 +327,17 @@ def test_v7_script_supports_total_and_main_area_unit_price_sorting():
     assert 'numericSort("price_per_total_area")' in script
     assert 'numericSort("price_per_main_area")' in script
     assert "firstMissing ? 1 : -1" in script
+
+
+def test_v7_assets_support_persistent_compact_and_comfortable_cards():
+    static_dir = Path(web_app_v7.__file__).with_name("static")
+    script = (static_dir / "dashboard_v7.js").read_text(encoding="utf-8")
+    styles = (static_dir / "dashboard_v7.css").read_text(encoding="utf-8")
+    dashboard = (static_dir / "dashboard_v3.js").read_text(encoding="utf-8")
+
+    assert 'data-view-mode="comfortable"' in script
+    assert 'data-view-mode="compact"' in script
+    assert "home-finder-result-view-mode" in script
+    assert 'classList.toggle("compact-view"' in script
+    assert ".results.compact-view" in styles
+    assert "status-${escapeHtml(item.status)}" in dashboard

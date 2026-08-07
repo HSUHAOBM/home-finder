@@ -12,6 +12,19 @@ const RESULT_STATUS_PRIORITY_V7 = [
   "near_match",
   "rejected",
 ];
+const RESULT_VIEW_MODE_KEY_V7 = "home-finder-result-view-mode";
+
+function storedResultViewModeV7() {
+  try {
+    return localStorage.getItem(RESULT_VIEW_MODE_KEY_V7) === "compact"
+      ? "compact"
+      : "comfortable";
+  } catch {
+    return "comfortable";
+  }
+}
+
+state.resultViewMode = storedResultViewModeV7();
 
 function selectFirstNonEmptyStatusV7() {
   if (!state.payload || profileItems(state.activeProfile, state.activeStatus).length) return;
@@ -93,6 +106,13 @@ document.querySelector("#results").insertAdjacentHTML(
       <select id="result-district"><option value="">全部已選地區</option></select>
     </label>
     <label class="toolbar-check"><input id="only-new" type="checkbox">只看本次新增／更新</label>
+    <div class="result-view-control">
+      <span>顯示</span>
+      <div class="view-mode-buttons" role="group" aria-label="卡片顯示密度">
+        <button type="button" data-view-mode="comfortable">完整</button>
+        <button type="button" data-view-mode="compact">精簡</button>
+      </div>
+    </div>
     <span id="visible-result-count"></span>
     <div id="near-failure-filters" class="near-failure-filters" hidden>
       <span>\u4f9d\u4e0d\u7b26\u5408\u9805\u76ee</span><div id="near-failure-filter-buttons"></div>
@@ -100,6 +120,24 @@ document.querySelector("#results").insertAdjacentHTML(
   </section>`
 );
 state.nearFailureFilter = "";
+
+function setResultViewModeV7(mode, persist = true) {
+  const selected = mode === "compact" ? "compact" : "comfortable";
+  state.resultViewMode = selected;
+  document.querySelector("#results").classList.toggle("compact-view", selected === "compact");
+  document.querySelectorAll("[data-view-mode]").forEach((button) => {
+    const active = button.dataset.viewMode === selected;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (!persist) return;
+  try { localStorage.setItem(RESULT_VIEW_MODE_KEY_V7, selected); } catch {}
+}
+
+document.querySelectorAll("[data-view-mode]").forEach((button) => {
+  button.addEventListener("click", () => setResultViewModeV7(button.dataset.viewMode));
+});
+setResultViewModeV7(state.resultViewMode, false);
 
 function failureCategoryV7(reason) {
   const text = String(reason || "");
