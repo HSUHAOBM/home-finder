@@ -19,7 +19,10 @@ DETAIL_ID = re.compile(r"/detail/\d+/(?P<id>\d+)\.html")
 LAYOUT = re.compile(r"(?P<rooms>\d+(?:\.\d+)?)房(?P<living>\d+)廳(?P<baths>\d+)衛")
 FLOOR = re.compile(r"(?P<current>\d+)F/(?P<total>\d+)F", re.I)
 DETAIL_CACHE_PATH = "data/cache/591_details_v2.json"
-PRICE = re.compile(r"(?m)^\s*(?P<price>[\d,]+)\s*$\s*^\s*萬\s*$")
+PRICE = re.compile(
+    r"(?m)^\s*(?P<price>[\d,]+)\s*(?:\r?\n\s*)?萬(?:元)?"
+    r"(?:\s+有議價空間嗎？?)?\s*$"
+)
 
 
 def _number(text: str, prefix: str, suffix: str) -> float | None:

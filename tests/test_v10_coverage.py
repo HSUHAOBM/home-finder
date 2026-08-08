@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import copy
 
+import pytest
+
 from home_finder import web_app_v7, web_app_v10
+from home_finder.crawler_591_browser import PRICE
 from home_finder.crawler_591_multi import PROFILE_SHAPES as PROFILE_SHAPES_591
 from home_finder.crawler_yungching import PROFILE_TYPES as PROFILE_TYPES_YUNGCHING
 from home_finder.user_models import HomeListing
@@ -132,8 +135,7 @@ def test_direct_591_url_parses_and_keeps_1290_listing(monkeypatch):
     from home_finder import crawler_591_multi
 
     body = """高雄市 楠梓區
-1,290
-萬
+1,290 萬元
 3房2廳2衛
 12F/15F
 權狀坪數 41.99坪
@@ -212,3 +214,21 @@ def test_direct_591_url_parses_and_keeps_1290_listing(monkeypatch):
     assert result.parking_type == "5.411坪，平面式，已含售金內"
     assert result.current_floor == 12
     assert result.total_floors == 15
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("638 萬元 有議價空間嗎？", "638"),
+        ("650 萬元 有議價空間嗎？", "650"),
+        ("698 萬元 有議價空間嗎？", "698"),
+        ("1,188 萬元 有議價空間嗎？", "1,188"),
+        ("1,290 萬元 有議價空間嗎？", "1,290"),
+        ("1,290\n萬", "1,290"),
+    ],
+)
+def test_price_parser_accepts_current_and_legacy_591_formats(text, expected):
+    match = PRICE.search(text)
+
+    assert match is not None
+    assert match.group("price") == expected
