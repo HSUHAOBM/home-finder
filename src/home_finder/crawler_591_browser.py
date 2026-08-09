@@ -19,7 +19,8 @@ DETAIL_ID = re.compile(r"/detail/\d+/(?P<id>\d+)\.html")
 LAYOUT = re.compile(r"(?P<rooms>\d+(?:\.\d+)?)房(?P<living>\d+)廳(?P<baths>\d+)衛")
 FLOOR = re.compile(r"(?P<current>\d+)F/(?P<total>\d+)F", re.I)
 DETAIL_CACHE_PATH = "data/cache/591_details_v2.json"
-PRICE = re.compile(
+PRICE = re.compile(r"(?m)^\s*(?P<price>[\d,]+)\s*$\s*^\s*萬\s*$")
+DETAIL_PRICE = re.compile(
     r"(?m)^\s*(?P<price>[\d,]+)\s*(?:\r?\n\s*)?萬(?:元)?"
     r"(?:\s+有議價空間嗎？?)?\s*$"
 )
@@ -36,7 +37,8 @@ def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
     id_match = DETAIL_ID.search(href)
     layout = LAYOUT.search(text)
     floor = FLOOR.search(text)
-    price = PRICE.search(text)
+    price_matches = list(PRICE.finditer(text))
+    price = price_matches[-1] if price_matches else None
     if not id_match or not layout or not price:
         raise ValueError("591 房源卡缺少 ID、格局或價格")
 

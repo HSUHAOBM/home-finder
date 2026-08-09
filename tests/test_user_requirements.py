@@ -77,3 +77,21 @@ def test_parse_realistic_list_card() -> None:
     assert listing.main_area_ping == 19.94
     assert listing.current_floor == 10
     assert listing.total_floors == 12
+
+
+def test_list_card_ignores_discount_amount_before_total_price() -> None:
+    card = {
+        "text": (
+            "降價\n70\n萬\n電梯大樓\n3房2廳2衛\n"
+            "權狀57.74坪\n9F/15F\n1,188\n萬\n"
+        ),
+        "href": "https://sale.591.com.tw/home/house/detail/2/20670982.html",
+        "title": "降價三房雙平車",
+        "district": "仁武區-",
+        "community": "測試社區",
+        "address": "測試路",
+    }
+
+    listing = parse_list_card(card, "高雄市")
+
+    assert listing.total_price_wan == 1188

@@ -13,7 +13,14 @@ from playwright.sync_api import (
     sync_playwright,
 )
 
-from .crawler_591_browser import DETAIL_ID, FLOOR, LAYOUT, PRICE, parse_detail_text, parse_list_card
+from .crawler_591_browser import (
+    DETAIL_ID,
+    DETAIL_PRICE,
+    FLOOR,
+    LAYOUT,
+    parse_detail_text,
+    parse_list_card,
+)
 from .crawler_591_browser_v3 import Browser591Crawler
 from .user_models import HomeListing
 
@@ -342,7 +349,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             compact = re.sub(r"\s+", " ", body)
             dense = re.sub(r"\s+", "", body)
             title = page.locator("h1").first.inner_text().strip()
-            price = PRICE.search(body)
+            price = DETAIL_PRICE.search(body)
             layout = LAYOUT.search(dense)
             floor = FLOOR.search(dense)
             district = re.search(r"高雄市\s*([^\s|>]{2,4}區)", compact)
