@@ -114,12 +114,23 @@ async function loadResults() {
   state.payload = payload;
   const successfulCrawl = payload.last_successful_crawl;
   const mode = successfulCrawl && successfulCrawl.mode === "full" ? "完整盤點" : "每日更新";
+  const duration = successfulCrawl ? formatDuration(successfulCrawl.duration_seconds) : null;
   $("#updated-at").textContent = successfulCrawl
-    ? `最近成功爬蟲：${new Date(successfulCrawl.finished_at).toLocaleString("zh-TW")}・${successfulCrawl.profile}・${mode}・${successfulCrawl.fetched} 筆`
+    ? `最近成功爬蟲：${new Date(successfulCrawl.finished_at).toLocaleString("zh-TW")}・${successfulCrawl.profile}・${mode}・${successfulCrawl.fetched} 筆${duration ? `・耗時 ${duration}` : ""}`
     : "還沒有成功爬蟲紀錄";
   $("#updated-at").title = payload.updated_at
     ? `結果檔更新：${new Date(payload.updated_at).toLocaleString("zh-TW")}`
     : "還沒有結果檔";
+}
+
+function formatDuration(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const totalSeconds = Math.max(0, Math.round(Number(value)));
+  if (!Number.isFinite(totalSeconds)) return null;
+  if (totalSeconds < 60) return `${totalSeconds} 秒`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return seconds ? `${minutes} 分 ${seconds} 秒` : `${minutes} 分`;
 }
 async function loadSettings() {
   const response = await fetch("/api/settings", { cache: "no-store" });
@@ -195,7 +206,13 @@ function scheduleStatusPoll(delay = 2500) {
 function renderStatus(status) {
   state.searchRunning = Boolean(status.running);
   const button = $("#search-button"); const light = $("#status-light"); button.disabled = status.running; button.classList.toggle("running", status.running); $("#settings-button").disabled = status.running;
-  $("#search-label").textContent = status.running ? "搜尋進行中" : "開始重新搜尋"; $("#status-message").textContent = status.error ? `${status.message}：${status.error}` : status.message; light.className = `status-light ${status.running ? "running" : status.phase}`;
+  $("#search-label").textContent = status.running ? "搜尋進行中" : "開始重新搜尋";
+  const elapsed = status.running && status.started_at
+    ? formatDuration((Date.now() - new Date(status.started_at).getTime()) / 1000)
+    : formatDuration(status.duration_seconds);
+  const message = status.error ? `${status.message}：${status.error}` : status.message;
+  $("#status-message").textContent = `${message}${elapsed ? `・${status.running ? "已執行" : "耗時"} ${elapsed}` : ""}`;
+  light.className = `status-light ${status.running ? "running" : status.phase}`;
   if (state.searchRunning) scheduleStatusPoll(); else stopStatusPolling();
 }
 async function pollStatus() {

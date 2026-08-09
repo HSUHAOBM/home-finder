@@ -82,6 +82,7 @@ def test_full_scan_has_no_publish_day_limit_and_collects_to_1300(monkeypatch):
 
 def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
     captured = {}
+    timestamps = iter([100.0, 225.4])
     current_settings = copy.deepcopy(web_app_v7.load_settings())
 
     class FakeCrawler:
@@ -93,6 +94,7 @@ def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
             return listing(external_id="20564796")
 
     monkeypatch.setattr(web_app_v10.crawl_app, "TimedResaleCrawler", FakeCrawler)
+    monkeypatch.setattr(web_app_v10, "_monotonic", lambda: next(timestamps))
     monkeypatch.setattr(
         web_app_v10.crawl_app, "load_settings",
         lambda: copy.deepcopy(current_settings),
@@ -130,6 +132,7 @@ def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
     assert response.get_json()["listing_id"] == "20564796"
     assert captured["collection_max_price"] == 1300
     assert captured["records"]
+    assert web_app_v10.base._state_snapshot()["duration_seconds"] == 125.4
 
 def test_direct_591_url_parses_and_keeps_1290_listing(monkeypatch):
     from home_finder import crawler_591_multi

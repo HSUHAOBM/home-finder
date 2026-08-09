@@ -51,6 +51,7 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 page.goto(base_url, wait_until="networkidle")
                 expect(page.locator(".listing-import-panel")).to_be_visible()
                 expect(page.locator("#active-goal-title")).to_have_text("大樓・華廈")
+                expect(page.locator("#updated-at")).to_contain_text("耗時 2 分 5 秒")
 
                 acceptable = page.locator('.tab[data-status="acceptable"]')
                 expect(acceptable).to_have_class(re.compile(r"\bactive\b"))

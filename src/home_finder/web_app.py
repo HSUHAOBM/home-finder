@@ -33,6 +33,7 @@ _state: dict[str, Any] = {
     "message": "可以開始搜尋",
     "started_at": None,
     "finished_at": None,
+    "duration_seconds": None,
     "error": None,
     "service_instance": datetime.now(timezone.utc).isoformat(),
 }

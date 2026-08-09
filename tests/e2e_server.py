@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from home_finder import web_app_v7, web_app_v10  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
+from home_finder.storage import atomic_write_json  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
 
 
@@ -125,6 +126,19 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
     web_app_v7.SETTINGS_HISTORY_PATH = data_dir / "settings-history.json"
     try:
         write_result_records(web_app_v7.base.RESULTS_PATH, _records())
+        atomic_write_json(
+            web_app_v7.SEARCH_HISTORY_PATH,
+            [
+                {
+                    "finished_at": "2026-08-09T01:02:03+00:00",
+                    "profile": "大樓公寓華廈",
+                    "mode": "daily",
+                    "fetched": 1,
+                    "duration_seconds": 125.4,
+                    "district_count": 1,
+                }
+            ],
+        )
         web_app_v10.activate()
         yield web_app_v10.app
     finally:

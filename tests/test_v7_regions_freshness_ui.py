@@ -270,7 +270,9 @@ def test_failed_search_does_not_record_success(tmp_path, monkeypatch):
     try:
         web_app_v7._run_search("大樓公寓華廈", "daily")
         assert not history_path.exists()
-        assert web_app_v7.base._state_snapshot()["phase"] == "error"
+        state = web_app_v7.base._state_snapshot()
+        assert state["phase"] == "error"
+        assert state["duration_seconds"] >= 0
     finally:
         with web_app_v7.base._state_lock:
             web_app_v7.base._state.clear()
@@ -284,6 +286,8 @@ def test_ui_displays_successful_crawl_time():
 
     assert "最近成功爬蟲" in dashboard
     assert "last_successful_crawl" in dashboard
+    assert "formatDuration" in dashboard
+    assert "・耗時 ${duration}" in dashboard
     assert "successful_crawls_by_profile" in dashboard_v7
     assert "最近成功 ${successTime}" in dashboard_v7
 

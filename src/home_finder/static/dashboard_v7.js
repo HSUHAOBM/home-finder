@@ -227,11 +227,12 @@ renderInsight = function renderInsightV7() {
     : null;
   const successTime = successfulCrawl ? new Date(successfulCrawl.finished_at).toLocaleString("zh-TW") : "尚無成功紀錄";
   const mode = diagnostic.mode === "full" ? "完整盤點" : "每日更新";
+  const duration = formatDuration(diagnostic.duration_seconds);
   box.insertAdjacentHTML("beforeend", `
     <div class="coverage-summary">
       <span>上次搜尋覆蓋</span>
       <strong>${mode}・${diagnostic.district_count} 區${diagnostic.pages_requested ? `・${diagnostic.pages_requested} 頁` : ""}</strong>
-      <small>最近成功 ${successTime}・讀取 ${diagnostic.fetched} 筆・${diagnostic.duration_seconds} 秒・快取${diagnostic.cache_expired ? "已過期重讀" : "仍有效"}${diagnostic.detail_failures ? `・詳情失敗 ${diagnostic.detail_failures}` : ""}</small>
+      <small>最近成功 ${successTime}・讀取 ${diagnostic.fetched} 筆${duration ? `・耗時 ${duration}` : ""}・快取${diagnostic.cache_expired ? "已過期重讀" : "仍有效"}${diagnostic.detail_failures ? `・詳情失敗 ${diagnostic.detail_failures}` : ""}</small>
     </div>`);
 };
 

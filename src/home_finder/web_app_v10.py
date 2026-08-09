@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 from flask import jsonify, request
 
@@ -17,6 +18,10 @@ base = previous.base
 _index_v9 = previous.index_v9
 
 
+def _monotonic() -> float:
+    return time.monotonic()
+
+
 def index_v10():
     html = _index_v9()
     assets = (
@@ -28,6 +33,7 @@ def index_v10():
 
 @app.post("/api/listings/import")
 def api_import_listing_v10():
+    started = _monotonic()
     payload = request.get_json(silent=True) or {}
     profile = payload.get("profile")
     url = str(payload.get("url") or "").strip()
@@ -44,6 +50,7 @@ def api_import_listing_v10():
             message="正在直接查核 591 房源網址…",
             started_at=base._iso_now(),
             finished_at=None,
+            duration_seconds=None,
             error=None,
         )
 
@@ -82,6 +89,7 @@ def api_import_listing_v10():
             search_mode="manual",
             message=f"已查核並加入房源 {imported.external_id}",
             finished_at=base._iso_now(),
+            duration_seconds=round(_monotonic() - started, 1),
             error=None,
         )
         return jsonify(
@@ -98,6 +106,7 @@ def api_import_listing_v10():
             search_mode="manual",
             message="房源網址查核未完成，原有結果已保留",
             finished_at=base._iso_now(),
+            duration_seconds=round(_monotonic() - started, 1),
             error=str(exc),
         )
         return jsonify({"error": str(exc)}), 400
@@ -110,6 +119,7 @@ def api_import_listing_v10():
             search_mode="manual",
             message="房源網址查核未完成，原有結果已保留",
             finished_at=base._iso_now(),
+            duration_seconds=round(_monotonic() - started, 1),
             error=str(exc),
         )
         return jsonify({"error": f"查核失敗：{type(exc).__name__}"}), 500

@@ -374,6 +374,7 @@ def _merge_full_scan_safely(
 
 
 def _run_search(profile: str, mode: str) -> None:
+    started = time.time()
     try:
         settings = load_settings()
         config = json.loads(base.CONFIG_PATH.read_text(encoding="utf-8"))
@@ -430,6 +431,7 @@ def _run_search(profile: str, mode: str) -> None:
                 f"{status_note}"
             ),
             finished_at=base._iso_now(),
+            duration_seconds=diagnostics.get("duration_seconds"),
             error=None,
         )
     except Exception as exc:  # pragma: no cover
@@ -440,6 +442,7 @@ def _run_search(profile: str, mode: str) -> None:
             search_mode=mode,
             message=f"{profile}搜尋未完成，原有結果已保留",
             finished_at=base._iso_now(),
+            duration_seconds=round(time.time() - started, 1),
             error=str(exc),
         )
 
@@ -517,7 +520,8 @@ def api_search_v7():
         base._state.update(
             running=True, phase="starting", active_profile=profile,
             search_mode=mode, message=f"準備搜尋「{profile}」…",
-            started_at=base._iso_now(), finished_at=None, error=None,
+            started_at=base._iso_now(), finished_at=None,
+            duration_seconds=None, error=None,
         )
         snapshot = dict(base._state)
     threading.Thread(target=_run_search, args=(profile, mode), daemon=True).start()
