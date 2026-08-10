@@ -140,6 +140,16 @@ def _decorate_favorite_changes(
     card["favorite_change_detected_at"] = latest.get("detected_at")
 
 
+def _copy_availability(stored: dict[str, Any], card: dict[str, Any]) -> None:
+    for field in (
+        "availability_status",
+        "availability_checked_at",
+        "availability_reason",
+    ):
+        if field in stored:
+            card[field] = stored[field]
+
+
 def _decorate_with_favorites(
     payload: dict[str, Any], *, refresh_snapshots: bool = True
 ) -> dict[str, Any]:
@@ -179,9 +189,11 @@ def _decorate_with_favorites(
             stored_card = _storage_snapshot(current_card, saved_at)
             if history:
                 stored_card["change_history"] = history
+            _copy_availability(stored, stored_card)
             changed = changed or stored_card != stored
             refreshed.append(stored_card)
             _decorate_favorite_changes(current_card, history)
+            _copy_availability(stored, current_card)
             card = copy.deepcopy(current_card)
             card["favorite_is_current"] = True
         else:
@@ -265,6 +277,7 @@ def api_favorites_v8():
             change_history = _favorite_history(existing.get(key, {}))
             if change_history:
                 snapshot["change_history"] = change_history
+            _copy_availability(existing.get(key, {}), snapshot)
             items = [
                 item
                 for item in items

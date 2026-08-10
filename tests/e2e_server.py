@@ -12,7 +12,7 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from home_finder import web_app_v7, web_app_v11  # noqa: E402
+from home_finder import web_app_v7, web_app_v8, web_app_v12  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
 from home_finder.storage import atomic_write_json  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
@@ -149,12 +149,14 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
         web_app_v7.DIAGNOSTICS_PATH,
         web_app_v7.SEARCH_HISTORY_PATH,
         web_app_v7.SETTINGS_HISTORY_PATH,
+        web_app_v8.FAVORITES_PATH,
     )
     web_app_v7.base.RESULTS_PATH = data_dir / "current-results.json"
     web_app_v7.base.SUMMARY_PATH = data_dir / "current-summary.md"
     web_app_v7.DIAGNOSTICS_PATH = data_dir / "diagnostics.json"
     web_app_v7.SEARCH_HISTORY_PATH = data_dir / "search-history.json"
     web_app_v7.SETTINGS_HISTORY_PATH = data_dir / "settings-history.json"
+    web_app_v8.FAVORITES_PATH = data_dir / "favorites.json"
     try:
         write_result_records(web_app_v7.base.RESULTS_PATH, _records())
         atomic_write_json(
@@ -170,8 +172,9 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
                 }
             ],
         )
-        web_app_v11.activate()
-        yield web_app_v11.app
+        atomic_write_json(web_app_v8.FAVORITES_PATH, {"version": 2, "items": []})
+        web_app_v12.activate()
+        yield web_app_v12.app
     finally:
         (
             web_app_v7.base.RESULTS_PATH,
@@ -179,6 +182,7 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             web_app_v7.DIAGNOSTICS_PATH,
             web_app_v7.SEARCH_HISTORY_PATH,
             web_app_v7.SETTINGS_HISTORY_PATH,
+            web_app_v8.FAVORITES_PATH,
         ) = original_paths
 
 

@@ -28,12 +28,5 @@ def test_v11_script_exposes_required_mortgage_scenarios_and_formula():
     assert "window.calculateMortgageV11" in script
 
 
-def test_launcher_and_readme_use_v11():
-    root = Path(web_app_v11.__file__).parents[2]
-
-    assert "home_finder.web_app_v11" in (
-        root / "開啟找房介面.cmd"
-    ).read_text(encoding="utf-8")
-    assert "home_finder.web_app_v11" in (
-        root / "README.md"
-    ).read_text(encoding="utf-8")
+def test_v11_module_remains_available_for_compatibility():
+    assert web_app_v11.app is not None

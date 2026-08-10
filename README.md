@@ -2,7 +2,7 @@
 
 本機執行的高雄房源搜尋與追蹤工具。它透過瀏覽器低頻讀取 591 與永慶公開頁面，將房源整理成三種購屋目標，再依必要條件、理想條件與資料完整度分類。
 
-目前正式入口是 `home_finder.web_app_v11`，主要功能包括：
+目前正式入口是 `home_finder.web_app_v12`，主要功能包括：
 
 - 大樓／華廈、透天／車墅、預售屋分開評估；公寓不蒐集。
 - 中古屋逐行政區搜尋，滿頁時自動依價格與型態細分；總價蒐集至 1,300 萬。
@@ -11,6 +11,7 @@
 - 591 與永慶中古屋合併搜尋，跨網站疑似同一物件群組顯示並保留各來源連結。
 - 保留成功爬蟲時間、實際耗時、首次發現時間與搜尋／條件歷史；「資料有更新」會列出實際欄位差異。
 - 收藏房源並長期保留快照與價格、車位等變更歷史，即使房源暫時未出現在最新結果中仍可追蹤。
+- 每次爬蟲完成後查核本次未找到的收藏網址，區分刊登中、已下架與查核失敗；已下架房源可直接移除收藏。
 - 以本息平均攤還比較 20%／30% 頭期款及 30／40 年房貸月付金與總利息。
 
 ## 快速開始
@@ -42,7 +43,7 @@ Copy-Item config.user.example.json config.user.json
 也可以從 PowerShell 啟動：
 
 ```powershell
-uv run python -m home_finder.web_app_v11
+uv run python -m home_finder.web_app_v12
 ```
 
 瀏覽器預設開啟 <http://127.0.0.1:8765>。CMD 視窗必須保持開啟；要停止服務時，在視窗按 `Ctrl+C` 或直接關閉視窗。
@@ -91,7 +92,7 @@ uv run python -m home_finder.web_app_v11
 | 路徑 | 內容 |
 | --- | --- |
 | `config.user.json` | 目前使用中的個人條件 |
-| `data/favorites.json` | 收藏房源、收藏時間與收藏後變更歷史 |
+| `data/favorites.json` | 收藏房源、收藏時間、變更歷史與最後網址存活查核結果 |
 | `data/listing_history.json` | 首次發現、再次出現與可能下架紀錄 |
 | `data/search_history.json` | 成功完成的搜尋紀錄 |
 | `data/settings_history.json` | 可重新載入的條件版本 |

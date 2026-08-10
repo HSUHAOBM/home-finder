@@ -1,0 +1,24 @@
+.favorite-availability {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 10px;
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; font-size: .78rem;
+}
+.favorite-availability strong { font-size: .82rem; }
+.favorite-availability span { min-width: 0; }
+.favorite-availability small { color: inherit; opacity: .78; white-space: nowrap; }
+.availability-available { background: var(--green-soft); color: var(--green); }
+.availability-unknown { background: #f1ece7; color: #725f52; }
+.availability-removed { border: 1px solid #d99a91; background: #fbe7e3; color: var(--brick); }
+.listing-card.delisted-card { border-color: #d99a91; box-shadow: inset 0 0 0 1px #d99a91; }
+.listing-card > .remove-delisted-favorite {
+  border-color: var(--brick); background: #fff5f3; color: var(--brick);
+}
+.listing-card > .remove-delisted-favorite:hover { background: var(--brick); color: white; }
+.favorite-audit-summary {
+  flex-basis: 100%; margin: 8px 0 0; color: var(--muted); font-size: .76rem;
+}
+.favorite-audit-summary.audit-warning { color: var(--brick); font-weight: 800; }
+
+@media (max-width: 680px) {
+  .favorite-availability { grid-template-columns: auto 1fr; }
+  .favorite-availability small { grid-column: 1 / -1; }
+}
