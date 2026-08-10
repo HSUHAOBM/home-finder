@@ -104,13 +104,41 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(page.locator("#results")).to_contain_text(
                     "E2E 可接受大樓"
                 )
-                page.locator(
+                district_tags = page.locator("#result-district-tags")
+                expect(district_tags.locator("button")).to_have_count(7)
+                district_tags.get_by_role("button", name="楠梓區", exact=True).click()
+                expect(
+                    district_tags.get_by_role("button", name="楠梓區", exact=True)
+                ).to_have_attribute("aria-pressed", "true")
+
+                acceptable_card = page.locator(
                     ".listing-card", has_text="E2E 可接受大樓"
-                ).locator(".mortgage-card-button").click()
+                )
+                mortgage_quick_link = acceptable_card.locator(
+                    ".district-tools > .mortgage-card-button"
+                )
+                quick_link_box = mortgage_quick_link.bounding_box()
+                assert quick_link_box is not None
+                assert quick_link_box["width"] < 100
+                assert quick_link_box["height"] < 32
+                mortgage_quick_link.click()
                 expect(mortgage_dialog).to_be_visible()
                 expect(page.locator("#mortgage-price")).to_have_value("1150")
                 expect(page.locator("#mortgage-rate")).to_have_value("0")
                 page.locator("#mortgage-close").click()
+
+                favorite_button = acceptable_card.locator(".favorite-toggle")
+                favorite_box_before = favorite_button.bounding_box()
+                favorite_button.click()
+                acceptable_card = page.locator(
+                    ".listing-card", has_text="E2E 可接受大樓"
+                )
+                favorite_button = acceptable_card.locator(".favorite-toggle")
+                expect(favorite_button).to_contain_text("已收藏")
+                favorite_box_after = favorite_button.bounding_box()
+                assert favorite_box_before is not None and favorite_box_after is not None
+                assert abs(favorite_box_before["width"] - favorite_box_after["width"]) < 1
+                assert abs(favorite_box_before["height"] - favorite_box_after["height"]) < 1
 
                 page.locator("#current-results-search").fill("E2E-NEAR")
                 expect(page.locator("#visible-result-count")).to_have_text(

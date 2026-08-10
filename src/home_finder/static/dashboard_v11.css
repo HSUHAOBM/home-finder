@@ -37,18 +37,37 @@
 .mortgage-result-card dd { margin: 0; font-weight: 850; text-align: right; }
 .mortgage-notes { margin-top: 15px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); font-size: .78rem; }
 .mortgage-notes p { margin: 5px 0 0; }
-.mortgage-card-button {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 104px;
-  margin: 4px 10px 0 0; padding: 10px 14px; border: 1px solid var(--green);
-  border-radius: 10px; background: #f7fbf8; color: var(--green); font: inherit;
-  font-weight: 900; cursor: pointer;
+.results { align-items: start; }
+.district-tools {
+  display: grid; flex: 0 0 auto; justify-items: end; gap: 3px; margin-left: auto;
 }
-.mortgage-card-button:hover { background: var(--green-soft); }
-.mortgage-card-button:disabled { border-color: var(--line); color: var(--muted); cursor: not-allowed; opacity: .65; }
+.mortgage-card-button {
+  display: inline-flex; align-items: center; gap: 3px; width: auto; min-width: 0;
+  margin: 0; padding: 2px 0; border: 0; border-bottom: 1px solid transparent;
+  border-radius: 0; background: transparent; color: var(--green); font: inherit;
+  font-size: .74rem; font-weight: 850; line-height: 1.2; cursor: pointer;
+}
+.mortgage-card-button:hover { border-bottom-color: currentColor; background: transparent; }
+.mortgage-card-button:disabled { border-color: transparent; color: var(--muted); cursor: not-allowed; opacity: .65; }
+.listing-card > .favorite-toggle {
+  width: 100%; min-width: 0; min-height: 52px; margin: 0 0 10px; box-sizing: border-box;
+}
+.result-district-control { display: grid; flex-basis: 100%; gap: 5px; }
+.result-district-control > span { color: var(--muted); font-size: .72rem; font-weight: 800; }
+.result-district-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.result-district-tags button {
+  min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px;
+  background: white; color: var(--ink); font: inherit; font-size: .78rem; font-weight: 850; cursor: pointer;
+}
+.result-district-tags button:hover { border-color: var(--green); color: var(--green); }
+.result-district-tags button.active { border-color: var(--green); background: var(--green); color: white; }
+.result-district-tags button:focus-visible { outline: 3px solid #a9cdb5; outline-offset: 2px; }
 .mortgage-header-button { white-space: nowrap; }
 
 @media (max-width: 680px) {
   .mortgage-dialog-body { padding: 20px; }
   .mortgage-inputs, .mortgage-results { grid-template-columns: 1fr; }
   .mortgage-monthly strong { font-size: 1.45rem; }
+  .result-district-tags { flex-wrap: nowrap; margin-right: -4px; padding: 1px 4px 5px 0; overflow-x: auto; }
+  .result-district-tags button { flex: 0 0 auto; }
 }

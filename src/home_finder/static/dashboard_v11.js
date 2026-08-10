@@ -139,14 +139,47 @@ listingCard = function listingCardV11(item) {
   let html = previousListingCardV11(item);
   const price = Number(item.price);
   const available = Number.isFinite(price) && price > 0;
-  const button = `<button class="mortgage-card-button" type="button"
+  const district = escapeHtml(item.district);
+  const districtMarkup = `<span class="district">${district}</span>`;
+  const districtTools = `<span class="district-tools">${districtMarkup}<button class="mortgage-card-button" type="button"
     ${available ? `data-mortgage-price="${price}"` : "disabled"}
     title="${available ? "帶入這筆房源總價" : "總價待確認，無法試算"}">
-    房貸試算
-  </button>`;
-  html = html.replace('<button class="favorite-toggle', `${button}<button class="favorite-toggle`);
+    試算房貸 <span aria-hidden="true">›</span>
+  </button></span>`;
+  html = html.replace(districtMarkup, districtTools);
   return html;
 };
+
+const districtSelectV11 = document.querySelector("#result-district");
+const districtControlV11 = districtSelectV11.closest("label");
+districtControlV11.className = "result-district-control";
+districtControlV11.innerHTML = `<span>行政區</span><div id="result-district-tags" class="result-district-tags" role="group" aria-label="依行政區篩選"></div>`;
+districtSelectV11.hidden = true;
+districtControlV11.appendChild(districtSelectV11);
+
+function renderDistrictTagsV11() {
+  const districts = state.settings ? state.settings.districts : [];
+  const current = districtSelectV11.value;
+  const options = [["", "全部"], ...districts.map((district) => [district, district])];
+  document.querySelector("#result-district-tags").innerHTML = options.map(([value, label]) => {
+    const active = current === value;
+    return `<button type="button" data-result-district="${escapeHtml(value)}" class="${active ? "active" : ""}" aria-pressed="${active}">${escapeHtml(label)}</button>`;
+  }).join("");
+}
+
+const previousRenderNavigationV11 = renderNavigation;
+renderNavigation = function renderNavigationV11() {
+  previousRenderNavigationV11();
+  renderDistrictTagsV11();
+};
+
+document.querySelector("#result-district-tags").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-result-district]");
+  if (!button) return;
+  districtSelectV11.value = button.dataset.resultDistrict;
+  renderDistrictTagsV11();
+  districtSelectV11.dispatchEvent(new Event("change", { bubbles: true }));
+});
 
 mortgageHeaderButtonV11.addEventListener("click", () => openMortgageV11());
 document.querySelector("#mortgage-close").addEventListener("click", () => mortgageDialogV11.close());
