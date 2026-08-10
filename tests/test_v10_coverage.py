@@ -111,7 +111,20 @@ def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         web_app_v10.previous.previous, "load_dashboard_payload",
-        lambda: {"groups": {}},
+        lambda: {
+            "groups": {
+                "near_match": [
+                    {
+                        "id": "20564796",
+                        "profile": "大樓公寓華廈",
+                        "score": 87,
+                        "failures": ["詳情欄位顯示無汽車位"],
+                        "questions": [],
+                        "concerns": ["屋齡資料不明"],
+                    }
+                ]
+            }
+        },
     )
     config_path = tmp_path / "config.user.json"
     config_path.write_text('{"source":{"collection_max_price":1300}}', encoding="utf-8")
@@ -129,7 +142,16 @@ def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
     )
 
     assert response.status_code == 200
-    assert response.get_json()["listing_id"] == "20564796"
+    response_payload = response.get_json()
+    assert response_payload["listing_id"] == "20564796"
+    assert response_payload["classification"] == {
+        "status": "near_match",
+        "label": "差強人意",
+        "score": 87,
+        "failures": ["詳情欄位顯示無汽車位"],
+        "questions": [],
+        "concerns": ["屋齡資料不明"],
+    }
     assert captured["collection_max_price"] == 1300
     assert captured["records"]
     assert web_app_v10.base._state_snapshot()["duration_seconds"] == 125.4

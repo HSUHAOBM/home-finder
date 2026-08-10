@@ -17,6 +17,35 @@ app = previous.app
 base = previous.base
 _index_v9 = previous.index_v9
 
+CLASSIFICATION_LABELS = {
+    "exact_match": "完全符合",
+    "acceptable": "可接受",
+    "needs_verification": "待確認",
+    "near_match": "差強人意",
+    "rejected": "已排除",
+}
+
+
+def _find_classification(
+    dashboard: dict, profile: str, listing_id: str
+) -> dict | None:
+    groups = dashboard.get("groups", {})
+    for status, label in CLASSIFICATION_LABELS.items():
+        for card in groups.get(status, []):
+            if (
+                card.get("profile") == profile
+                and str(card.get("id")) == str(listing_id)
+            ):
+                return {
+                    "status": status,
+                    "label": label,
+                    "score": card.get("score"),
+                    "failures": card.get("failures", []),
+                    "questions": card.get("questions", []),
+                    "concerns": card.get("concerns", []),
+                }
+    return None
+
 
 def _monotonic() -> float:
     return time.monotonic()
@@ -92,10 +121,14 @@ def api_import_listing_v10():
             duration_seconds=round(_monotonic() - started, 1),
             error=None,
         )
+        dashboard = previous.previous.load_dashboard_payload()
         return jsonify(
             {
                 "listing_id": imported.external_id,
-                "results": previous.previous.load_dashboard_payload(),
+                "classification": _find_classification(
+                    dashboard, profile, imported.external_id
+                ),
+                "results": dashboard,
             }
         )
     except (ValueError, OSError, json.JSONDecodeError) as exc:

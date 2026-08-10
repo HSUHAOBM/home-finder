@@ -55,13 +55,14 @@ def _record(
     score: float,
     *,
     missing_required: list[str] | None = None,
+    hard_failures: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "listing": listing.to_dict(),
         "profile": profile,
         "status": status,
         "score": score,
-        "hard_failures": [],
+        "hard_failures": hard_failures or [],
         "missing_required": missing_required or [],
         "strengths": ["E2E 測試房源"],
         "concerns": [],
@@ -75,6 +76,14 @@ def _records() -> list[dict[str, Any]]:
         "E2E 可接受大樓",
         "大樓公寓華廈",
         1150,
+    )
+    condo_without_parking = _listing(
+        "E2E-NEAR",
+        "E2E 跨分類搜尋房源",
+        "大樓公寓華廈",
+        698,
+        parking_type="無",
+        has_parking=False,
     )
     house = _listing(
         "E2E-HOUSE",
@@ -99,6 +108,13 @@ def _records() -> list[dict[str, Any]]:
     )
     return [
         _record(condo, "大樓公寓華廈", "qualified", 88),
+        _record(
+            condo_without_parking,
+            "大樓公寓華廈",
+            "rejected",
+            87,
+            hard_failures=["詳情欄位顯示無汽車位"],
+        ),
         _record(house, "透天別墅", "qualified", 95),
         _record(
             presale,

@@ -282,10 +282,22 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             detailed: list[HomeListing] = []
             detail_page = context.new_page()
             uncached_requests = 0
-            for listing in candidates[: self.max_details]:
+            deferred_details = 0
+            for listing in candidates:
                 cached_data = cache.get(listing.external_id)
                 if cached_data:
                     detailed.append(self._merge_cached(listing, HomeListing.from_dict(cached_data)))
+                    continue
+                if uncached_requests >= self.max_details:
+                    deferred_details += 1
+                    detailed.append(
+                        replace(
+                            listing,
+                            data_warnings=listing.data_warnings + [
+                                f"本輪尚未讀取詳情：已達 {self.max_details} 筆詳情頁上限"
+                            ],
+                        )
+                    )
                     continue
                 if uncached_requests:
                     self.sleep(self.delay_seconds)
@@ -311,6 +323,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 "source": "591",
                 "candidate_count": len(candidates),
                 "fetched": len(detailed),
+                "detail_requests": uncached_requests,
+                "detail_deferred": deferred_details,
                 "pages_requested": self.max_pages,
                 "publish_days": self.publish_days,
                 "collection_max_price": self.collection_max_price,

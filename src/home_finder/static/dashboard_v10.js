@@ -21,6 +21,89 @@ importPanelV10.innerHTML = `
 `;
 document.querySelector(".active-goal").insertAdjacentElement("afterend", importPanelV10);
 
+const resultSearchV10 = document.createElement("label");
+resultSearchV10.className = "result-search-control";
+resultSearchV10.innerHTML = `
+  <span>搜尋全部分類</span>
+  <div>
+    <input id="current-results-search" type="search"
+      placeholder="輸入 591 編號、標題、行政區或來源">
+    <button id="clear-results-search" type="button" aria-label="清除搜尋">清除</button>
+  </div>
+`;
+document.querySelector(".result-toolbar").prepend(resultSearchV10);
+state.resultQuery = "";
+
+const resultSearchStatusesV10 = [
+  "exact_match", "acceptable", "needs_verification", "near_match", "rejected",
+];
+
+function allProfileItemsV10() {
+  const seen = new Set();
+  return resultSearchStatusesV10.flatMap((status) =>
+    (state.payload.groups[status] || []).filter((item) => {
+      const key = `${item.source || ""}:${item.id}`;
+      if (item.profile !== state.activeProfile || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+  );
+}
+
+function matchesResultQueryV10(item, query) {
+  return [item.id, item.title, item.district, item.source, item.origin_source,
+    item.parking, item.broker_name]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase("zh-TW")
+    .includes(query);
+}
+
+const previousRenderResultsV10 = renderResults;
+renderResults = function renderResultsV10() {
+  const query = String(state.resultQuery || "").trim().toLocaleLowerCase("zh-TW");
+  if (!query || !state.payload) {
+    previousRenderResultsV10();
+    return;
+  }
+  const items = allProfileItemsV10().filter((item) => matchesResultQueryV10(item, query));
+  const filters = document.querySelector("#near-failure-filter-box");
+  if (filters) filters.hidden = true;
+  document.querySelector("#visible-result-count").textContent =
+    `搜尋全部分類：找到 ${items.length} 組`;
+  document.querySelector("#results").innerHTML = items.length
+    ? items.map(listingCard).join("")
+    : emptyState("找不到房源", "可改用 591 編號、標題關鍵字、行政區或來源搜尋。");
+};
+
+document.querySelector("#current-results-search").addEventListener("input", (event) => {
+  state.resultQuery = event.target.value;
+  renderResults();
+});
+document.querySelector("#clear-results-search").addEventListener("click", () => {
+  const input = document.querySelector("#current-results-search");
+  input.value = "";
+  state.resultQuery = "";
+  renderResults();
+  input.focus();
+});
+
+function classificationMessageV10(listingId, classification) {
+  if (!classification) return `已加入房源 ${listingId}，但暫時找不到分類結果。`;
+  const parts = [`已加入房源 ${listingId}。分類：${classification.label}`];
+  if (classification.score != null) parts[0] += `（符合度 ${classification.score}%）`;
+  if (classification.failures && classification.failures.length) {
+    parts.push(`不符合：${classification.failures.join("；")}`);
+  }
+  if (classification.questions && classification.questions.length) {
+    parts.push(`待確認：${classification.questions.join("；")}`);
+  }
+  if (classification.concerns && classification.concerns.length) {
+    parts.push(`注意：${classification.concerns.join("；")}`);
+  }
+  return parts.join(" ");
+}
+
 const previousRenderNavigationV10 = renderNavigation;
 renderNavigation = function renderNavigationV10() {
   previousRenderNavigationV10();
@@ -53,9 +136,13 @@ document.querySelector("#listing-import-form").addEventListener("submit", async 
     });
     const payload = await readJsonResponse(response, "房源網址查核失敗");
     state.payload = payload.results;
+    state.resultQuery = String(payload.listing_id);
+    document.querySelector("#current-results-search").value = state.resultQuery;
     renderNavigation();
     renderResults();
-    message.textContent = `已加入房源 ${payload.listing_id}，並依目前條件完成分類。`;
+    message.textContent = classificationMessageV10(
+      payload.listing_id, payload.classification
+    );
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -83,4 +170,13 @@ renderInsight = function renderInsightV10() {
     `${unresolved ? `・仍有 ${number(unresolved)} 組達頁數上限` : "・沒有未解決的滿頁截斷"}` +
     `</small>`
   );
+  const detailRequests = Number(source.detail_requests || 0);
+  const detailDeferred = Number(source.detail_deferred || 0);
+  if (detailRequests || detailDeferred) {
+    coverage.insertAdjacentHTML(
+      "beforeend",
+      `<small class="coverage-detail">詳情已讀 ${number(detailRequests)} 筆` +
+      `${detailDeferred ? `・另保留 ${number(detailDeferred)} 筆列表候選待補詳情` : ""}</small>`
+    );
+  }
 };

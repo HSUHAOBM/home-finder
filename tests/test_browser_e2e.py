@@ -59,6 +59,18 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                     "E2E 可接受大樓"
                 )
 
+                page.locator("#current-results-search").fill("E2E-NEAR")
+                expect(page.locator("#visible-result-count")).to_have_text(
+                    "搜尋全部分類：找到 1 組"
+                )
+                expect(page.locator("#results")).to_contain_text(
+                    "E2E 跨分類搜尋房源"
+                )
+                page.locator("#clear-results-search").click()
+                expect(page.locator("#results")).to_contain_text(
+                    "E2E 可接受大樓"
+                )
+
                 page.locator('[data-profile="透天別墅"]').click()
                 exact = page.locator('.tab[data-status="exact_match"]')
                 expect(exact).to_have_class(re.compile(r"\bactive\b"))

@@ -23,9 +23,30 @@
   background: var(--paper);
 }
 #listing-import-message { grid-column: 1 / -1; margin: 0; min-height: 1.4em; }
+.result-search-control { min-width: min(340px, 100%); }
+.result-search-control > div { display: flex; }
+#current-results-search {
+  width: 100%;
+  min-width: 220px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px 0 0 9px;
+  background: var(--paper);
+}
+#clear-results-search {
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 9px 9px 0;
+  background: var(--soft);
+  color: var(--muted);
+  cursor: pointer;
+}
 @media (max-width: 760px) {
   .listing-import-panel { grid-template-columns: 1fr; }
   #listing-import-form { flex-direction: column; }
+  .result-search-control, #current-results-search { width: 100%; min-width: 0; }
 }
 
 .coverage-detail { display: block; margin-top: 6px; }
