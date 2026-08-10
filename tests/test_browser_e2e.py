@@ -81,6 +81,9 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
 
                 near_match = page.locator('.tab[data-status="near_match"]')
                 near_match.click()
+                failure_filters = page.locator("#near-failure-filter-buttons")
+                expect(failure_filters).to_contain_text("無車位 1")
+                expect(failure_filters).to_contain_text("非平面車位 1")
                 failure_sort = page.locator('[data-sort-field="failures"]')
                 expect(failure_sort).to_have_attribute(
                     "aria-label", "不符合項目少到多"

@@ -339,6 +339,8 @@ def test_v7_script_supports_total_and_main_area_unit_price_sorting():
     assert 'data-sort-field="failures"' in script
     assert '>不符合項目</button>' in script
     assert 'data-sort-field="metric">推薦' not in script
+    assert 'return "無車位"' in script
+    assert 'return "非平面車位"' in script
     assert "syncSortButtonsV7" in script
 
 

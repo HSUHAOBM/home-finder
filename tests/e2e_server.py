@@ -85,6 +85,14 @@ def _records() -> list[dict[str, Any]]:
         parking_type="無",
         has_parking=False,
     )
+    condo_mechanical_parking = _listing(
+        "E2E-MECHANICAL",
+        "E2E 機械車位房源",
+        "大樓公寓華廈",
+        758,
+        parking_type="機械式",
+        has_parking=True,
+    )
     house = _listing(
         "E2E-HOUSE",
         "E2E 完全符合透天",
@@ -114,6 +122,13 @@ def _records() -> list[dict[str, Any]]:
             "rejected",
             87,
             hard_failures=["詳情欄位顯示無汽車位"],
+        ),
+        _record(
+            condo_mechanical_parking,
+            "大樓公寓華廈",
+            "rejected",
+            87,
+            hard_failures=["不是平面車位：機械式"],
         ),
         _record(house, "透天別墅", "qualified", 95),
         _record(

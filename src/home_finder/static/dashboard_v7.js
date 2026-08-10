@@ -206,6 +206,8 @@ setResultViewModeV7(state.resultViewMode, false);
 function failureCategoryV7(reason) {
   const text = String(reason || "");
   if (/\u7e3d\u50f9|\u50f9\u683c/.test(text)) return "\u7e3d\u50f9";
+  if (/無汽車位|完全沒車位|無車位|車位[^，；：]*為無/.test(text)) return "無車位";
+  if (/不是平面車位|非平面車位|機械車位|機械式|機械上層|機械下層/.test(text)) return "非平面車位";
   if (/\u8eca\u4f4d|\u6c7d\u8eca\u4f4d/.test(text)) return "\u8eca\u4f4d";
   if (/\u4e3b\u5efa\u7269|\u92b7\u552e\u576a\u6578|\u576a\u6578|\u576a\u9580\u6abb/.test(text)) return "\u576a\u6578";
   if (/\u6a13\u5c64|\u4f4d\u65bc.*\u6a13|\u5168\u68df/.test(text)) return "\u6a13\u5c64";
