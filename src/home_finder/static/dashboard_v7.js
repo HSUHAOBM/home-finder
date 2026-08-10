@@ -105,13 +105,12 @@ document.querySelector("#results").insertAdjacentHTML(
         <option value="floor">樓層比例高到低</option>
       </select>
       <div class="sort-buttons" role="group" aria-label="房源排序方式">
-        <button type="button" data-sort-field="metric">推薦</button>
+        <button type="button" data-sort-field="failures" class="failure-sort-button">不符合項目</button>
         <button type="button" data-sort-field="price">總價</button>
         <button type="button" data-sort-field="total-unit">權狀單價</button>
         <button type="button" data-sort-field="main-unit">室內單價</button>
         <button type="button" data-sort-field="age">屋齡</button>
         <button type="button" data-sort-field="newest">最新</button>
-        <button type="button" data-sort-field="failures" class="failure-sort-button" hidden>不符合</button>
     </div>
       </div>
     <label>行政區
@@ -132,7 +131,7 @@ document.querySelector("#results").insertAdjacentHTML(
   </section>`
 );
 state.nearFailureFilter = "";
-state.resultSort = { field: "metric", direction: "desc" };
+state.resultSort = { field: "newest", direction: "desc" };
 const SORT_DEFAULT_DIRECTIONS_V7 = {
   metric: "desc", price: "asc", "total-unit": "asc", "main-unit": "asc",
   age: "asc", newest: "desc", failures: "asc",
@@ -331,13 +330,11 @@ document.querySelector("#near-failure-filter-buttons").addEventListener("click",
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    const failureButton = document.querySelector(".failure-sort-button");
-    failureButton.hidden = tab.dataset.status !== "near_match";
     if (tab.dataset.status === "near_match") {
       state.nearFailureFilter = "";
       state.resultSort = { field: "failures", direction: "asc" };
     } else if (state.resultSort.field === "failures") {
-      state.resultSort = { field: "metric", direction: "desc" };
+      state.resultSort = { field: "newest", direction: "desc" };
     }
     syncSortButtonsV7();
     renderResults();

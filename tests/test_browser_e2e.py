@@ -79,6 +79,19 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                     "E2E 可接受大樓"
                 )
 
+                near_match = page.locator('.tab[data-status="near_match"]')
+                near_match.click()
+                failure_sort = page.locator('[data-sort-field="failures"]')
+                expect(failure_sort).to_have_attribute(
+                    "aria-label", "不符合項目少到多"
+                )
+                expect(failure_sort).to_contain_text("↑")
+                failure_sort.click()
+                expect(failure_sort).to_have_attribute(
+                    "aria-label", "不符合項目多到少"
+                )
+                expect(failure_sort).to_contain_text("↓")
+
                 page.locator('[data-profile="透天別墅"]').click()
                 exact = page.locator('.tab[data-status="exact_match"]')
                 expect(exact).to_have_class(re.compile(r"\bactive\b"))

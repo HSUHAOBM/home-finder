@@ -336,6 +336,9 @@ def test_v7_script_supports_total_and_main_area_unit_price_sorting():
     assert 'if (mode === "age-desc")' in script
     assert 'data-sort-field="total-unit"' in script
     assert 'data-sort-field="main-unit"' in script
+    assert 'data-sort-field="failures"' in script
+    assert '>不符合項目</button>' in script
+    assert 'data-sort-field="metric">推薦' not in script
     assert "syncSortButtonsV7" in script
 
 
