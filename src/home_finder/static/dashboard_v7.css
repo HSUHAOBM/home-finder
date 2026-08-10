@@ -23,6 +23,18 @@
   border-radius: 9px; background: white; color: var(--ink);
 }
 .result-toolbar .toolbar-check { display: flex; flex-direction: row; align-items: center; height: 38px; gap: 6px; cursor: pointer; }
+.result-sort-control { display: grid; flex-basis: 100%; gap: 5px; }
+.result-sort-control > span { color: var(--muted); font-size: .72rem; font-weight: 800; }
+.sort-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
+.sort-buttons button {
+  min-width: 68px; height: 36px; padding: 0 11px; border: 1px solid var(--line);
+  border-radius: 999px; background: white; color: var(--ink); font: inherit;
+  font-size: .78rem; font-weight: 850; cursor: pointer;
+}
+.sort-buttons button:hover { border-color: var(--green); }
+.sort-buttons button.active { border-color: var(--green); background: var(--green); color: white; }
+.sort-buttons button.failure-sort-button.active { border-color: var(--brick); background: var(--brick); }
+.sort-buttons button:focus-visible { outline: 3px solid #a9cdb5; outline-offset: 2px; }
 .result-view-control { display: grid; gap: 4px; }
 .result-view-control > span { color: var(--muted); font-size: .72rem; font-weight: 800; }
 .view-mode-buttons { display: flex; height: 38px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: #f3f2ec; }

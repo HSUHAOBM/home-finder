@@ -89,8 +89,9 @@ listingCard = function listingCardV7(item) {
 document.querySelector("#results").insertAdjacentHTML(
   "beforebegin",
   `<section class="result-toolbar" aria-label="房源排序與篩選">
-    <label>排序
-      <select id="result-sort">
+    <div class="result-sort-control">
+      <span>排序</span>
+      <select id="result-sort" hidden aria-hidden="true">
         <option value="metric">理想條件符合度</option>
         <option value="failures">\u4e0d\u7b26\u5408\u9805\u76ee\uff08\u5c11\u5230\u591a\uff09</option>
         <option value="newest">最新發現</option>
@@ -99,9 +100,20 @@ document.querySelector("#results").insertAdjacentHTML(
         <option value="total-unit-desc">權狀單價高到低</option>
         <option value="main-unit-asc">主建單價低到高</option>
         <option value="main-unit-desc">主建單價高到低</option>
+        <option value="age-asc">屋齡新到舊</option>
+        <option value="age-desc">屋齡舊到新</option>
         <option value="floor">樓層比例高到低</option>
       </select>
-    </label>
+      <div class="sort-buttons" role="group" aria-label="房源排序方式">
+        <button type="button" data-sort-field="metric">推薦</button>
+        <button type="button" data-sort-field="price">總價</button>
+        <button type="button" data-sort-field="total-unit">權狀單價</button>
+        <button type="button" data-sort-field="main-unit">室內單價</button>
+        <button type="button" data-sort-field="age">屋齡</button>
+        <button type="button" data-sort-field="newest">最新</button>
+        <button type="button" data-sort-field="failures" class="failure-sort-button" hidden>不符合</button>
+    </div>
+      </div>
     <label>行政區
       <select id="result-district"><option value="">全部已選地區</option></select>
     </label>
@@ -120,6 +132,59 @@ document.querySelector("#results").insertAdjacentHTML(
   </section>`
 );
 state.nearFailureFilter = "";
+state.resultSort = { field: "metric", direction: "desc" };
+const SORT_DEFAULT_DIRECTIONS_V7 = {
+  metric: "desc", price: "asc", "total-unit": "asc", "main-unit": "asc",
+  age: "asc", newest: "desc", failures: "asc",
+};
+const SORT_DIRECTION_LABELS_V7 = {
+  metric: { asc: "符合度低到高", desc: "符合度高到低" },
+  price: { asc: "總價低到高", desc: "總價高到低" },
+  "total-unit": { asc: "權狀單價低到高", desc: "權狀單價高到低" },
+  "main-unit": { asc: "室內單價低到高", desc: "室內單價高到低" },
+  age: { asc: "屋齡新到舊", desc: "屋齡舊到新" },
+  newest: { asc: "首次發現舊到新", desc: "首次發現新到舊" },
+  failures: { asc: "不符合項目少到多", desc: "不符合項目多到少" },
+};
+
+function sortModeV7(field, direction) {
+  if (field === "metric" && direction === "desc") return "metric";
+  if (field === "newest" && direction === "desc") return "newest";
+  if (field === "failures" && direction === "asc") return "failures";
+  return `${field}-${direction}`;
+}
+
+function syncSortButtonsV7() {
+  document.querySelectorAll("[data-sort-field]").forEach((button) => {
+    const active = button.dataset.sortField === state.resultSort.field;
+    const direction = active ? state.resultSort.direction : null;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    const label = button.textContent.replace(/[↑↓]\s*$/, "").trim();
+    button.textContent = `${label}${active ? (direction === "asc" ? " ↑" : " ↓") : ""}`;
+    button.setAttribute("aria-label", active
+      ? SORT_DIRECTION_LABELS_V7[button.dataset.sortField][direction]
+      : `依${label}排序`);
+  });
+  const mode = sortModeV7(state.resultSort.field, state.resultSort.direction);
+  const select = document.querySelector("#result-sort");
+  if (![...select.options].some((option) => option.value === mode)) {
+    select.insertAdjacentHTML("beforeend", `<option value="${mode}">${mode}</option>`);
+  }
+  select.value = mode;
+}
+
+document.querySelector(".sort-buttons").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-sort-field]");
+  if (!button) return;
+  const field = button.dataset.sortField;
+  state.resultSort = state.resultSort.field === field
+    ? { field, direction: state.resultSort.direction === "asc" ? "desc" : "asc" }
+    : { field, direction: SORT_DEFAULT_DIRECTIONS_V7[field] };
+  syncSortButtonsV7();
+  renderResults();
+});
+syncSortButtonsV7();
 
 function setResultViewModeV7(mode, persist = true) {
   const selected = mode === "compact" ? "compact" : "comfortable";
@@ -182,14 +247,20 @@ function sortItemsV7(items) {
     return descending ? second - first : first - second;
   });
 
-  if (mode === "failures") return copy.sort((a, b) => (a.failures || []).length - (b.failures || []).length || failureCategoriesV7(a).join("\u3001").localeCompare(failureCategoriesV7(b).join("\u3001"), "zh-TW") || (b.metric_value || 0) - (a.metric_value || 0));
-  if (mode === "price") return copy.sort((a, b) => (a.price || 999999) - (b.price || 999999));
+  if (mode === "failures" || mode === "failures-asc") return copy.sort((a, b) => (a.failures || []).length - (b.failures || []).length || failureCategoriesV7(a).join("\u3001").localeCompare(failureCategoriesV7(b).join("\u3001"), "zh-TW") || (b.metric_value || 0) - (a.metric_value || 0));
+  if (mode === "failures-desc") return copy.sort((a, b) => (b.failures || []).length - (a.failures || []).length || (b.metric_value || 0) - (a.metric_value || 0));
+  if (mode === "price" || mode === "price-asc") return numericSort("price");
+  if (mode === "price-desc") return numericSort("price", true);
   if (mode === "total-unit-asc") return numericSort("price_per_total_area");
   if (mode === "total-unit-desc") return numericSort("price_per_total_area", true);
   if (mode === "main-unit-asc") return numericSort("price_per_main_area");
   if (mode === "main-unit-desc") return numericSort("price_per_main_area", true);
+  if (mode === "age-asc") return numericSort("age");
+  if (mode === "age-desc") return numericSort("age", true);
   if (mode === "floor") return copy.sort((a, b) => ((b.floor || 0) / (b.total_floors || 999)) - ((a.floor || 0) / (a.total_floors || 999)));
   if (mode === "newest") return copy.sort((a, b) => String(b.first_seen_at || "").localeCompare(String(a.first_seen_at || "")));
+  if (mode === "newest-asc") return copy.sort((a, b) => String(a.first_seen_at || "").localeCompare(String(b.first_seen_at || "")));
+  if (mode === "metric-asc") return copy.sort((a, b) => (a.metric_value || 0) - (b.metric_value || 0) || (a.price || 999999) - (b.price || 999999));
   return copy.sort((a, b) => (b.metric_value || 0) - (a.metric_value || 0) || (a.price || 999999) - (b.price || 999999));
 }
 
@@ -260,16 +331,15 @@ document.querySelector("#near-failure-filter-buttons").addEventListener("click",
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    const sort = document.querySelector("#result-sort");
-    let sortChanged = false;
+    const failureButton = document.querySelector(".failure-sort-button");
+    failureButton.hidden = tab.dataset.status !== "near_match";
     if (tab.dataset.status === "near_match") {
       state.nearFailureFilter = "";
-      sort.value = "failures";
-      sortChanged = true;
-    } else if (sort.value === "failures") {
-      sort.value = "metric";
-      sortChanged = true;
+      state.resultSort = { field: "failures", direction: "asc" };
+    } else if (state.resultSort.field === "failures") {
+      state.resultSort = { field: "metric", direction: "desc" };
     }
-    if (sortChanged) renderResults();
+    syncSortButtonsV7();
+    renderResults();
   });
 });

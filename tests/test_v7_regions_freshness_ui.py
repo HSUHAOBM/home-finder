@@ -331,6 +331,12 @@ def test_v7_script_supports_total_and_main_area_unit_price_sorting():
     assert 'numericSort("price_per_total_area")' in script
     assert 'numericSort("price_per_main_area")' in script
     assert "firstMissing ? 1 : -1" in script
+    assert 'data-sort-field="age"' in script
+    assert 'if (mode === "age-asc")' in script
+    assert 'if (mode === "age-desc")' in script
+    assert 'data-sort-field="total-unit"' in script
+    assert 'data-sort-field="main-unit"' in script
+    assert "syncSortButtonsV7" in script
 
 
 def test_v7_assets_support_persistent_compact_and_comfortable_cards():

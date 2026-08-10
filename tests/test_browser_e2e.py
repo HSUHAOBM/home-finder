@@ -50,6 +50,14 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
 
                 page.goto(base_url, wait_until="networkidle")
                 expect(page.locator(".listing-import-panel")).to_be_visible()
+                age_sort = page.locator('[data-sort-field="age"]')
+                age_sort.click()
+                expect(age_sort).to_have_attribute("aria-label", "屋齡新到舊")
+                expect(age_sort).to_contain_text("↑")
+                age_sort.click()
+                expect(age_sort).to_have_attribute("aria-label", "屋齡舊到新")
+                expect(age_sort).to_contain_text("↓")
+
                 expect(page.locator("#active-goal-title")).to_have_text("大樓・華廈")
                 expect(page.locator("#updated-at")).to_contain_text("耗時 2 分 5 秒")
 
