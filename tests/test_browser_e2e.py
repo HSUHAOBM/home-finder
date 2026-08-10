@@ -50,6 +50,44 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
 
                 page.goto(base_url, wait_until="networkidle")
                 expect(page.locator(".listing-import-panel")).to_be_visible()
+                mortgage_button = page.locator("#mortgage-calculator-button")
+                expect(mortgage_button).to_be_visible()
+                mortgage_button.click()
+                mortgage_dialog = page.locator("#mortgage-dialog")
+                expect(mortgage_dialog).to_be_visible()
+                page.locator("#mortgage-price").fill("1000")
+                expect(page.locator(".mortgage-result-card")).to_have_count(4)
+                scenario_20_30 = page.locator(
+                    '[data-mortgage-scenario="20-30"]'
+                )
+                expect(scenario_20_30).to_contain_text("800 萬")
+                expect(scenario_20_30).to_contain_text("NT$ 30,784")
+                expect(scenario_20_30).to_contain_text("308.2 萬")
+                expect(scenario_20_30).to_contain_text("1,108.2 萬")
+
+                page.set_viewport_size({"width": 600, "height": 900})
+                first_box = page.locator(".mortgage-result-card").nth(0).bounding_box()
+                second_box = page.locator(".mortgage-result-card").nth(1).bounding_box()
+                assert first_box is not None and second_box is not None
+                assert round(first_box["x"]) == round(second_box["x"])
+                assert second_box["y"] > first_box["y"]
+                page.set_viewport_size({"width": 1440, "height": 1000})
+
+                page.locator("#mortgage-rate").fill("0")
+                expect(scenario_20_30).to_contain_text("NT$ 22,222")
+                expect(scenario_20_30).to_contain_text("0 萬")
+                page.locator("#mortgage-rate").fill("")
+                expect(page.locator("#mortgage-error")).to_have_text(
+                    "年利率請輸入 0%～20%。"
+                )
+                page.locator("#mortgage-rate").fill("0")
+                page.locator("#mortgage-price").fill("-1")
+                expect(page.locator("#mortgage-error")).to_have_text(
+                    "請輸入大於 0 的房屋總價。"
+                )
+                expect(page.locator(".mortgage-result-card")).to_have_count(0)
+                page.locator("#mortgage-close").click()
+                expect(mortgage_dialog).not_to_be_visible()
                 age_sort = page.locator('[data-sort-field="age"]')
                 age_sort.click()
                 expect(age_sort).to_have_attribute("aria-label", "屋齡新到舊")
@@ -66,6 +104,13 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(page.locator("#results")).to_contain_text(
                     "E2E 可接受大樓"
                 )
+                page.locator(
+                    ".listing-card", has_text="E2E 可接受大樓"
+                ).locator(".mortgage-card-button").click()
+                expect(mortgage_dialog).to_be_visible()
+                expect(page.locator("#mortgage-price")).to_have_value("1150")
+                expect(page.locator("#mortgage-rate")).to_have_value("0")
+                page.locator("#mortgage-close").click()
 
                 page.locator("#current-results-search").fill("E2E-NEAR")
                 expect(page.locator("#visible-result-count")).to_have_text(
@@ -117,6 +162,10 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(page.locator("#results")).to_contain_text(
                     "E2E 待確認預售"
                 )
+                expect(
+                    page.locator(".listing-card", has_text="E2E 待確認預售")
+                    .locator(".mortgage-card-button")
+                ).to_be_disabled()
 
                 page.locator("#selected-settings-button").click()
                 dialog = page.locator("#settings-dialog")
