@@ -46,11 +46,26 @@ def audit_favorite_availability(
     audit_updates: dict[str, dict[str, str]] = {}
 
     def apply_result(item: dict[str, Any], result: AvailabilityResult) -> None:
+        previous_status = item.get("availability_status")
+        history = item.get("availability_history", [])
+        if not isinstance(history, list):
+            history = []
+        if previous_status != result.status:
+            history.append({
+                "checked_at": checked_at,
+                "from": previous_status,
+                "to": result.status,
+                "reason": result.reason,
+            })
+            history = history[-30:]
         update = {
             "availability_status": result.status,
             "availability_checked_at": checked_at,
             "availability_reason": result.reason,
+            "availability_history": history,
         }
+        if result.status == "removed":
+            update["removed_at"] = item.get("removed_at") or checked_at
         item.update(update)
         audit_updates[_key(item)] = update
         counts[result.status] += 1

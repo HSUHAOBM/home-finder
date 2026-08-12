@@ -12,7 +12,7 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from home_finder import web_app_v7, web_app_v8, web_app_v12  # noqa: E402
+from home_finder import web_app_v7, web_app_v8, web_app_v13  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
 from home_finder.storage import atomic_write_json  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
@@ -151,6 +151,15 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
         web_app_v7.SETTINGS_HISTORY_PATH,
         web_app_v8.FAVORITES_PATH,
     )
+    original_hooks = (
+        web_app_v7._crawl_for_mode,
+        web_app_v7._record_successful_crawl,
+        web_app_v7._full_scan_archive_skip_reason,
+        web_app_v7.load_dashboard_payload,
+        web_app_v7.base.load_dashboard_payload,
+        web_app_v7.app.view_functions["index"],
+        web_app_v7.app.view_functions["api_results"],
+    )
     web_app_v7.base.RESULTS_PATH = data_dir / "current-results.json"
     web_app_v7.base.SUMMARY_PATH = data_dir / "current-summary.md"
     web_app_v7.DIAGNOSTICS_PATH = data_dir / "diagnostics.json"
@@ -173,8 +182,8 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             ],
         )
         atomic_write_json(web_app_v8.FAVORITES_PATH, {"version": 2, "items": []})
-        web_app_v12.activate()
-        yield web_app_v12.app
+        web_app_v13.activate()
+        yield web_app_v13.app
     finally:
         (
             web_app_v7.base.RESULTS_PATH,
@@ -184,6 +193,15 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             web_app_v7.SETTINGS_HISTORY_PATH,
             web_app_v8.FAVORITES_PATH,
         ) = original_paths
+        (
+            web_app_v7._crawl_for_mode,
+            web_app_v7._record_successful_crawl,
+            web_app_v7._full_scan_archive_skip_reason,
+            web_app_v7.load_dashboard_payload,
+            web_app_v7.base.load_dashboard_payload,
+            web_app_v7.app.view_functions["index"],
+            web_app_v7.app.view_functions["api_results"],
+        ) = original_hooks
 
 
 def main() -> None:

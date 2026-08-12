@@ -140,6 +140,22 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 assert abs(favorite_box_before["width"] - favorite_box_after["width"]) < 1
                 assert abs(favorite_box_before["height"] - favorite_box_after["height"]) < 1
 
+                page.locator('.tab[data-status="favorites"]').click()
+                favorite_filters = page.locator("#favorite-status-filters")
+                expect(favorite_filters).to_be_visible()
+                expect(favorite_filters.locator("button")).to_have_count(5)
+                favorite_filters.get_by_role("button", name=re.compile("待查核")).click()
+                expect(page.locator("#results")).to_contain_text("E2E 可接受大樓")
+                page.locator(".favorite-note summary").click()
+                note = page.locator(".favorite-note textarea")
+                note.fill("地點很好，屋況需要整理")
+                page.locator(".favorite-note-save").click()
+                expect(page.locator("#status-message")).to_have_text("收藏備註已儲存")
+                expect(page.locator(".favorite-note textarea")).to_have_value(
+                    "地點很好，屋況需要整理"
+                )
+                acceptable.click()
+
                 page.locator("#current-results-search").fill("E2E-NEAR")
                 expect(page.locator("#visible-result-count")).to_have_text(
                     "搜尋全部分類：找到 1 組"

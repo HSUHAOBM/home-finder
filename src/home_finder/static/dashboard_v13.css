@@ -1,0 +1,28 @@
+.favorite-status-filters {
+  display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+}
+.favorite-status-filters[hidden] { display: none; }
+.favorite-status-filters button {
+  min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px;
+  background: white; color: var(--ink); font: inherit; font-size: .78rem; font-weight: 850; cursor: pointer;
+}
+.favorite-status-filters button b { margin-left: 3px; color: var(--muted); }
+.favorite-status-filters button.active { border-color: var(--green); background: var(--green); color: white; }
+.favorite-status-filters button.active b { color: white; }
+.favorite-note { margin: 0 0 12px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: #faf9f5; }
+.favorite-note summary { color: var(--green); font-size: .8rem; font-weight: 900; cursor: pointer; }
+.favorite-note textarea { width: 100%; margin-top: 9px; padding: 9px 10px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); font: inherit; box-sizing: border-box; }
+.favorite-note > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; }
+.favorite-note small { color: var(--muted); }
+.favorite-note-save { padding: 7px 11px; border: 1px solid var(--green); border-radius: 8px; background: white; color: var(--green); font: inherit; font-size: .78rem; font-weight: 900; cursor: pointer; }
+.delisted-history { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 0 0 12px; padding: 10px 12px; border-left: 3px solid var(--brick); background: #fff5f3; color: #74443d; font-size: .78rem; }
+.delisted-history strong { width: 100%; color: var(--brick); }
+.delisted-history details { width: 100%; }
+.delisted-history summary { margin-top: 3px; font-weight: 800; cursor: pointer; }
+.delisted-history ul { margin: 7px 0 0; padding-left: 18px; }
+
+@media (max-width: 680px) {
+  .favorite-status-filters { flex-wrap: nowrap; overflow-x: auto; }
+  .favorite-status-filters button { flex: 0 0 auto; }
+}

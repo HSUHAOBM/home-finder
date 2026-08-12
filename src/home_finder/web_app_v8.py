@@ -145,6 +145,10 @@ def _copy_availability(stored: dict[str, Any], card: dict[str, Any]) -> None:
         "availability_status",
         "availability_checked_at",
         "availability_reason",
+        "availability_history",
+        "removed_at",
+        "favorite_note",
+        "favorite_note_updated_at",
     ):
         if field in stored:
             card[field] = stored[field]

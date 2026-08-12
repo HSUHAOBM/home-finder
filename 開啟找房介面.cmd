@@ -21,7 +21,7 @@ echo 正在啟動找房介面，請勿關閉這個視窗。
 echo 程式或網頁檔案修改後，服務會自動重載；切回瀏覽器時會自動刷新。
 echo 要停止服務時，請在這裡按 Ctrl+C，或直接關閉視窗。
 echo.
-".venv\Scripts\python.exe" -m home_finder.web_app_v12 --reload %*
+".venv\Scripts\python.exe" -m home_finder.web_app_v13 --reload %*
 set "HOME_FINDER_EXIT_CODE=%ERRORLEVEL%"
 echo.
 echo 找房介面服務已停止。

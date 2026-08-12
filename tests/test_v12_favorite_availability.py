@@ -83,18 +83,12 @@ def test_audit_skips_current_and_other_profile_favorites(tmp_path: Path, monkeyp
     assert "availability_status" not in saved[2]
 
 
-def test_v12_assets_and_launcher_are_active():
+def test_v12_assets_remain_available_for_compatibility():
     with web_app_v12.app.test_request_context("/"):
         page = web_app_v12.index_v12()
     root = Path(web_app_v12.__file__).parents[2]
     assert "/static/dashboard_v12.css" in page
     assert "/static/dashboard_v12.js" in page
-    assert "home_finder.web_app_v12" in (
-        root / "開啟找房介面.cmd"
-    ).read_text(encoding="utf-8")
-    assert "home_finder.web_app_v12" in (
-        root / "README.md"
-    ).read_text(encoding="utf-8")
 
 
 def test_availability_survives_current_result_snapshot_refresh(tmp_path, monkeypatch):
