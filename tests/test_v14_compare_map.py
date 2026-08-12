@@ -38,4 +38,3 @@ def test_v14_assets_launcher_and_features():
     assert "favorite-map-button" in script
     assert "travelmode" in script
     assert "一次最多比較 4 間收藏" in script
-    assert "home_finder.web_app_v14" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")

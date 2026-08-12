@@ -12,7 +12,7 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from home_finder import web_app_v7, web_app_v8, web_app_v14  # noqa: E402
+from home_finder import web_app_v7, web_app_v8, web_app_v15  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
 from home_finder.storage import atomic_write_json  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
@@ -183,15 +183,16 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             ],
         )
         atomic_write_json(web_app_v8.FAVORITES_PATH, {"version": 2, "items": []})
-        web_app_v14.COMMUTE_SETTINGS_PATH = data_dir / "commute-settings.json"
-        atomic_write_json(web_app_v14.COMMUTE_SETTINGS_PATH, {
+        web_app_v15.previous.COMMUTE_SETTINGS_PATH = data_dir / "commute-settings.json"
+        web_app_v15.COMMUTE_CACHE_PATH = data_dir / "commute-cache.json"
+        atomic_write_json(web_app_v15.previous.COMMUTE_SETTINGS_PATH, {
             "destinations": [
                 {"name": "公司・義大醫院", "address": "高雄市燕巢區義大路1號"},
                 {"name": "住家", "address": "高雄市楠梓區常德路333號"},
             ]
         })
-        web_app_v14.activate()
-        yield web_app_v14.app
+        web_app_v15.activate()
+        yield web_app_v15.app
     finally:
         (
             web_app_v7.base.RESULTS_PATH,

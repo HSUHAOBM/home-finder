@@ -1,0 +1,7 @@
+.commute-estimate-box { margin-top: 13px; padding: 12px 13px; border: 1px solid var(--green); border-radius: 10px; background: #f7fbf8; }
+.commute-estimate-button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--green); color: white; font: inherit; font-weight: 900; cursor: pointer; }
+.commute-estimate-box > small { display: block; margin-top: 7px; color: var(--muted); }
+.commute-estimate-results { display: grid; gap: 7px; margin-top: 10px; }
+.commute-estimate-results > div { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; border-top: 1px solid var(--line); }
+.commute-estimate-results span { color: var(--green); font-weight: 900; }
+.commute-estimate-results p { margin: 0; color: var(--brick); }
