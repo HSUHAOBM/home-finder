@@ -21,3 +21,4 @@ data/search_diagnostics.json
 data/listings*.json
 data/commute_settings.json
 data/commute_cache.json
+data/cache/real-price/

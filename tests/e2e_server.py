@@ -12,7 +12,7 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from home_finder import web_app_v7, web_app_v8, web_app_v15  # noqa: E402
+from home_finder import web_app_v7, web_app_v8, web_app_v15, web_app_v16  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
 from home_finder.storage import atomic_write_json  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
@@ -167,6 +167,7 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
     web_app_v7.SEARCH_HISTORY_PATH = data_dir / "search-history.json"
     web_app_v7.SETTINGS_HISTORY_PATH = data_dir / "settings-history.json"
     web_app_v8.FAVORITES_PATH = data_dir / "favorites.json"
+    original_real_price_query = web_app_v16.query_real_price
     try:
         write_result_records(web_app_v7.base.RESULTS_PATH, _records())
         atomic_write_json(
@@ -191,8 +192,20 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
                 {"name": "住家", "address": "高雄市楠梓區常德路333號"},
             ]
         })
-        web_app_v15.activate()
-        yield web_app_v15.app
+        web_app_v16.REAL_PRICE_CACHE_DIR = data_dir / "real-price"
+        web_app_v16.query_real_price = lambda listing, **kwargs: {
+            "community": listing.get("community"), "district": listing.get("district"),
+            "address": listing.get("address"), "road": "常德路", "months": 12,
+            "since": "2025-08-12", "match_level": "road", "match_label": "同路段參考",
+            "comparison_scope": "同路段、坪數約正負 30% 且房數相同",
+            "summary": {"count": 2, "median_unit_price": 30.5, "min_unit_price": 29.0, "max_unit_price": 32.0, "latest_date": "2026-05-01"},
+            "listing_unit_price": 31.2,
+            "transactions": [{"date": "2026-05-01", "address": "常德路301~330號", "total_price_wan": 1080, "unit_price_wan_ping": 32, "area_ping": 33.75, "floor": "八層", "parking": "坡道平面"}],
+            "source_url": "https://lvr.land.moi.gov.tw/", "seasons": ["115S1", "115S2"],
+            "notice": "官方開放資料未提供穩定社區名稱；結果僅供比價參考。",
+        }
+        web_app_v16.activate()
+        yield web_app_v16.app
     finally:
         (
             web_app_v7.base.RESULTS_PATH,
@@ -211,6 +224,7 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             web_app_v7.app.view_functions["index"],
             web_app_v7.app.view_functions["api_results"],
         ) = original_hooks
+        web_app_v16.query_real_price = original_real_price_query
 
 
 def main() -> None:

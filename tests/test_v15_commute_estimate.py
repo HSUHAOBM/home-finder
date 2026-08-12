@@ -50,4 +50,4 @@ def test_v15_assets_and_launcher_are_active():
     assert "估算通勤時間" in script
     assert "不含即時路況" in script
     assert "是否同意本次瀏覽期間使用" in script
-    assert "home_finder.web_app_v15" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
+    assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")

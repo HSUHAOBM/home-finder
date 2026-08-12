@@ -154,6 +154,12 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(page.locator(".favorite-note textarea")).to_have_value(
                     "地點很好，屋況需要整理"
                 )
+                page.locator(".real-price-open").click()
+                workspace = page.locator("#favorite-workspace")
+                expect(workspace).to_be_visible()
+                expect(workspace.locator(".real-price-summary")).to_be_visible()
+                expect(workspace.locator(".real-price-table-wrap tbody tr")).to_have_count(1)
+                workspace.locator(".workspace-close").click()
                 page.locator("#favorite-map-button").click()
                 workspace = page.locator("#favorite-workspace")
                 expect(workspace).to_be_visible()
