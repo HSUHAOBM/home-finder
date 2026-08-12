@@ -12,7 +12,7 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from home_finder import web_app_v7, web_app_v8, web_app_v13  # noqa: E402
+from home_finder import web_app_v7, web_app_v8, web_app_v14  # noqa: E402
 from home_finder.result_store import write_result_records  # noqa: E402
 from home_finder.storage import atomic_write_json  # noqa: E402
 from home_finder.user_models import HomeListing  # noqa: E402
@@ -32,6 +32,7 @@ def _listing(
         "url": f"https://example.com/{external_id}",
         "city": "高雄市",
         "district": "楠梓區",
+        "address": "常德路333號",
         "total_price_wan": price,
         "property_type": "電梯大樓",
         "main_area_ping": 20,
@@ -182,8 +183,15 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             ],
         )
         atomic_write_json(web_app_v8.FAVORITES_PATH, {"version": 2, "items": []})
-        web_app_v13.activate()
-        yield web_app_v13.app
+        web_app_v14.COMMUTE_SETTINGS_PATH = data_dir / "commute-settings.json"
+        atomic_write_json(web_app_v14.COMMUTE_SETTINGS_PATH, {
+            "destinations": [
+                {"name": "公司・義大醫院", "address": "高雄市燕巢區義大路1號"},
+                {"name": "住家", "address": "高雄市楠梓區常德路333號"},
+            ]
+        })
+        web_app_v14.activate()
+        yield web_app_v14.app
     finally:
         (
             web_app_v7.base.RESULTS_PATH,

@@ -154,6 +154,14 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(page.locator(".favorite-note textarea")).to_have_value(
                     "地點很好，屋況需要整理"
                 )
+                page.locator("#favorite-map-button").click()
+                workspace = page.locator("#favorite-workspace")
+                expect(workspace).to_be_visible()
+                expect(workspace).to_contain_text("收藏地圖與通勤")
+                expect(workspace).to_contain_text("公司・義大醫院")
+                expect(workspace).to_contain_text("住家")
+                expect(workspace.locator(".commute-destination a")).to_have_count(4)
+                workspace.locator(".workspace-close").click()
                 acceptable.click()
 
                 page.locator("#current-results-search").fill("E2E-NEAR")

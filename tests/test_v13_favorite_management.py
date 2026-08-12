@@ -74,5 +74,3 @@ def test_v13_assets_launcher_and_ui_features():
     assert "data-favorite-status" in script
     assert "favorite-note-save" in script
     assert "下架確認" in script
-    assert "home_finder.web_app_v13" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
-    assert "home_finder.web_app_v13" in (root / "README.md").read_text(encoding="utf-8")

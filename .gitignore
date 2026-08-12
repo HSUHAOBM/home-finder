@@ -19,3 +19,4 @@ data/settings_history.json
 data/favorites.json
 data/search_diagnostics.json
 data/listings*.json
+data/commute_settings.json

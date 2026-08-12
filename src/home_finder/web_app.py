@@ -124,6 +124,7 @@ def _card(record: dict[str, Any]) -> dict[str, Any]:
         "title": listing.get("title"),
         "url": listing.get("url"),
         "district": listing.get("district"),
+        "address": listing.get("address"),
         "price": price,
         "total_area": total_area,
         "main_area": main_area,
