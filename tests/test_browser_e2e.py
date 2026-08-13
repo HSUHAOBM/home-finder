@@ -160,7 +160,7 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(workspace.locator(".real-price-summary")).to_be_visible()
                 expect(workspace.locator(".closest-match.best")).to_contain_text("可能同一棟 91%")
                 expect(workspace.locator(".real-price-table-wrap tbody tr")).to_have_count(1)
-                expect(workspace.locator(".real-price-period button")).to_have_count(3)
+                expect(workspace.locator(".real-price-period button")).to_have_count(4)
                 workspace.locator(".workspace-close").click()
                 page.locator("#favorite-map-button").click()
                 workspace = page.locator("#favorite-workspace")

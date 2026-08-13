@@ -89,3 +89,4 @@ def test_recent_seasons_uses_four_completed_quarters():
     assert _recent_seasons(date(2026, 8, 12)) == ("114S3", "114S4", "115S1", "115S2")
     assert _recent_seasons(date(2027, 1, 2)) == ("115S1", "115S2", "115S3", "115S4")
     assert len(_recent_seasons(date(2026, 8, 12), 60)) == 20
+    assert len(_recent_seasons(date(2026, 8, 12), 120)) == 40

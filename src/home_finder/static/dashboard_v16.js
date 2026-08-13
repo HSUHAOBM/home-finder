@@ -31,6 +31,7 @@ function realPriceWorkspaceV16(item) {
       <button type="button" data-months="6">近 6 個月</button>
       <button type="button" data-months="12" class="active">近 1 年</button>
       <button type="button" data-months="60">近 5 年</button>
+      <button type="button" data-months="120">近 10 年</button>
     </div>
     <div class="real-price-results"><div class="real-price-loading">正在讀取內政部官方資料……首次查詢需要下載季度資料。</div></div>
   </section>`;
@@ -78,7 +79,12 @@ function renderRealPriceV16(box, payload) {
 
 async function loadRealPriceV16(box, months) {
   const results = box.querySelector(".real-price-results");
-  results.innerHTML = `<div class="real-price-loading">正在讀取內政部官方資料……${months === 60 ? "近 5 年首次查詢需下載約 20 季資料，時間會比較久。" : "首次查詢可能需要約 1 分鐘。"}</div>`;
+  const historyNotice = months === 120
+    ? "近 10 年首次查詢需下載約 40 季資料，可能需要數分鐘。"
+    : months === 60
+      ? "近 5 年首次查詢需下載約 20 季資料，時間會比較久。"
+      : "首次查詢可能需要約 1 分鐘。";
+  results.innerHTML = `<div class="real-price-loading">正在讀取內政部官方資料……${historyNotice}</div>`;
   box.querySelectorAll("[data-months]").forEach((button) => {
     button.classList.toggle("active", Number(button.dataset.months) === months);
     button.disabled = true;
