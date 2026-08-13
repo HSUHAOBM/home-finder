@@ -53,6 +53,18 @@ def test_detail_structured_parking_overrides_title() -> None:
     assert "標題宣稱平車" in enriched.data_warnings[0]
 
 
+def test_detail_text_uses_complete_kaohsiung_address_when_present() -> None:
+    listing = home(
+        external_id="20575470", title="小康成家", address="高楠公路",
+        community="小康成家",
+    )
+    enriched = parse_detail_text(
+        listing,
+        "房屋資料 地址：高雄市楠梓區高楠公路1749號 型態：電梯大樓 裝潢程度：精緻裝潢",
+    )
+    assert enriched.address == "高雄市楠梓區高楠公路1749號"
+
+
 def test_duplicate_group_ignores_different_asking_prices() -> None:
     first = home(external_id="a", community="希望社區", total_area_ping=31.2)
     second = home(external_id="b", community="希望社區", total_area_ping=31.2, total_price_wan=1150)

@@ -132,6 +132,7 @@ def _card(record: dict[str, Any]) -> dict[str, Any]:
         "price_per_total_area": unit_price(total_area),
         "price_per_main_area": unit_price(main_area),
         "rooms": listing.get("rooms"),
+        "property_type": listing.get("property_type"),
         "baths": listing.get("baths"),
         "parking": listing.get("parking_type"),
         "floor": listing.get("current_floor"),

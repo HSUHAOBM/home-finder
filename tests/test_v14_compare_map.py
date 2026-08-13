@@ -16,6 +16,7 @@ def test_dashboard_card_exposes_address():
         "status": "qualified", "profile": "大樓公寓華廈",
     }
     assert web_app._card(record)["address"] == "常德路333號"
+    assert "community" in web_app._card(record)
 
 
 def test_commute_settings_api_reads_local_file(tmp_path: Path, monkeypatch):
@@ -38,3 +39,5 @@ def test_v14_assets_launcher_and_features():
     assert "favorite-map-button" in script
     assert "travelmode" in script
     assert "一次最多比較 4 間收藏" in script
+    assert "if (/\\d+(?:之\\d+)?號/.test(locatedAddress)) return locatedAddress" in script
+    assert "return community ? `${base} ${community}` : locatedAddress" in script

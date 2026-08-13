@@ -200,7 +200,8 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
             "comparison_scope": "同路段、坪數約正負 30% 且房數相同",
             "summary": {"count": 2, "median_unit_price": 30.5, "min_unit_price": 29.0, "max_unit_price": 32.0, "latest_date": "2026-05-01"},
             "listing_unit_price": 31.2,
-            "transactions": [{"date": "2026-05-01", "address": "常德路301~330號", "total_price_wan": 1080, "unit_price_wan_ping": 32, "area_ping": 33.75, "floor": "八層", "parking": "坡道平面"}],
+            "transactions": [{"date": "2026-05-01", "address": "常德路301~330號", "total_price_wan": 1080, "unit_price_wan_ping": 32, "area_ping": 33.75, "floor": "八層", "parking": "坡道平面", "similarity_score": 91, "similarity_label": "可能同一棟", "similarity_reasons": ["門牌範圍吻合", "房數相同"], "differences": ["樓層差 -2 層"]}],
+            "closest_matches": [{"date": "2026-05-01", "address": "常德路301~330號", "total_price_wan": 1080, "unit_price_wan_ping": 32, "area_ping": 33.75, "floor": "八層", "parking": "坡道平面", "similarity_score": 91, "similarity_label": "可能同一棟", "similarity_reasons": ["門牌範圍吻合", "房數相同"], "differences": ["樓層差 -2 層"]}],
             "source_url": "https://lvr.land.moi.gov.tw/", "seasons": ["115S1", "115S2"],
             "notice": "官方開放資料未提供穩定社區名稱；結果僅供比價參考。",
         }

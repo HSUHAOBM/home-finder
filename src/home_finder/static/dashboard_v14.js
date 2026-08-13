@@ -3,9 +3,13 @@ state.commuteDestinations = [];
 
 function fullAddressV14(item) {
   const address = String(item.address || "").trim();
-  if (!address) return "";
-  if (address.startsWith("高雄市")) return address;
-  return `高雄市${item.district || ""}${address}`;
+  const community = String(item.community || "").trim();
+  const base = `高雄市${item.district || ""}`;
+  if (!address) return community ? `${base} ${community}` : "";
+  const locatedAddress = address.startsWith("高雄市")
+    ? address : `${base}${address}`;
+  if (/\d+(?:之\d+)?號/.test(locatedAddress)) return locatedAddress;
+  return community ? `${base} ${community}` : locatedAddress;
 }
 
 function mapsSearchUrlV14(address, embed = false) {

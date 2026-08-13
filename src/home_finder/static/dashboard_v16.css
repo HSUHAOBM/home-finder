@@ -19,6 +19,19 @@
 .real-price-summary > div { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: #f4f2ec; }
 .real-price-summary small { color: var(--muted); }
 .real-price-summary strong { color: var(--green); }
+.closest-matches { margin: 16px 0; }
+.closest-matches h3 { margin: 0; color: var(--ink); }
+.closest-matches > p { margin: 3px 0 10px; color: var(--muted); font-size: .77rem; }
+.closest-matches > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.closest-match { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: #faf9f5; font-size: .8rem; }
+.closest-match.best { border-color: #b8944d; background: #fff9eb; box-shadow: 0 5px 16px rgba(128, 95, 32, .08); }
+.closest-match header { display: flex; justify-content: space-between; gap: 8px; color: var(--green); }
+.closest-match header span { color: #805f20; font-weight: 900; }
+.closest-match small { display: block; }
+.similarity-reasons { color: var(--green); }
+.similarity-differences { color: var(--brick); }
+.real-price-table-wrap td:first-child { display: grid; gap: 2px; }
+.real-price-table-wrap td:first-child small { color: var(--muted); }
 .real-price-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
 .real-price-table-wrap table { width: 100%; border-collapse: collapse; font-size: .8rem; white-space: nowrap; }
 .real-price-table-wrap th, .real-price-table-wrap td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; }
@@ -29,4 +42,5 @@
   .real-price-summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
   .real-price-period { overflow-x: auto; }
   .real-price-period button { flex: 0 0 auto; }
+  .closest-matches > div { grid-template-columns: 1fr; }
 }

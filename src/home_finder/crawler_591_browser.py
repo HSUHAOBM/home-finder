@@ -77,6 +77,9 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     type_match = re.search(r"型態\s*：\s*(.*?)\s*裝潢程度", compact)
     parking_match = re.search(r"車位\s*：\s*(.*?)\s*坪數說明", compact)
     main_match = re.search(r"主建物\s*：\s*([\d.]+)坪", compact)
+    address_match = re.search(
+        r"高雄市[\u4e00-\u9fff]{1,4}區[^\s，,。｜|]{2,40}?號", compact
+    )
     warnings = list(listing.data_warnings)
 
     property_type = type_match.group(1).strip() if type_match else listing.property_type
@@ -124,6 +127,7 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         parking_type=parking_type,
         has_parking=has_parking,
         main_area_ping=float(main_match.group(1)) if main_match else listing.main_area_ping,
+        address=address_match.group(0) if address_match else listing.address,
         has_garden=has_garden,
         data_warnings=warnings,
     )

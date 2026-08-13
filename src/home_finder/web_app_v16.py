@@ -22,7 +22,7 @@ def api_favorite_real_price_v16():
     source = str(payload.get("source") or "").strip()
     external_id = str(payload.get("id") or "").strip()
     months = payload.get("months", 12)
-    if not source or not external_id or months not in (6, 12):
+    if not source or not external_id or months not in (6, 12, 60):
         return jsonify({"error": "查詢條件不正確。"}), 400
     favorites = favorites_app.load_dashboard_payload().get("favorites", [])
     key = favorites_app._favorite_key(source, external_id)
