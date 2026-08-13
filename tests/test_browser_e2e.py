@@ -141,6 +141,9 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 assert abs(favorite_box_before["height"] - favorite_box_after["height"]) < 1
 
                 page.locator('.tab[data-status="favorites"]').click()
+                expect(page.locator(".favorite-overview")).to_be_visible()
+                expect(page.locator(".favorite-card .favorite-availability")).to_have_count(0)
+                expect(page.locator(".favorite-note-compact")).not_to_have_attribute("open", "")
                 favorite_filters = page.locator("#favorite-status-filters")
                 expect(favorite_filters).to_be_visible()
                 expect(favorite_filters.locator("button")).to_have_count(5)

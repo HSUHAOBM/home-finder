@@ -1,3 +1,38 @@
+favoriteTrackingV8 = function favoriteTrackingV16(item) {
+  if (!item.is_favorite) return "";
+  const changes = item.favorite_changes || [];
+  const history = item.favorite_change_history || [];
+  const availability = item.availability_status || "pending";
+  const labels = { available: "刊登中", removed: "已下架", unknown: "查核失敗", pending: "待查核" };
+  const stateLabel = labels[availability] || "待查核";
+  const changeLabel = changes.length ? `資料更新 ${changes.length} 項` : "無新變動";
+  const historyHtml = history.length > 1 ? `<details class="favorite-change-history">
+    <summary>查看過去 ${history.length} 次變動</summary>
+    ${history.slice(0, -1).reverse().map((entry) => `<div class="favorite-change-event"><strong>${escapeHtml(dateText(entry.detected_at))}</strong><ul>${(entry.changes || []).map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul></div>`).join("")}
+  </details>` : "";
+  return `<details class="favorite-overview availability-${escapeHtml(availability)}" ${availability === "removed" ? "open" : ""}>
+    <summary><strong>${escapeHtml(stateLabel)}</strong><b class="${changes.length ? "has-change" : ""}">${escapeHtml(changeLabel)}</b><small>${escapeHtml(dateText(item.availability_checked_at || item.favorite_last_seen_at))}</small></summary>
+    <div class="favorite-overview-detail">
+      <span>${escapeHtml(item.availability_reason || (item.favorite_is_current ? "本次搜尋仍有出現" : "保留收藏快照"))}</span>
+      <span>收藏：${escapeHtml(dateText(item.favorite_saved_at))}・最近看到：${escapeHtml(dateText(item.favorite_last_seen_at))}</span>
+      ${changes.length ? `<ul>${changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>` : ""}
+      ${historyHtml}
+    </div>
+  </details>`;
+};
+
+availabilityTrackingV12 = function availabilityTrackingV16() { return ""; };
+
+favoriteNoteV13 = function favoriteNoteV16(item) {
+  if (!item.is_favorite) return "";
+  const note = item.favorite_note || "";
+  return `<details class="favorite-note favorite-note-compact">
+    <summary>${note ? "備註已填" : "＋ 備註"}</summary>
+    <textarea maxlength="500" rows="3" placeholder="例如：地點很好、屋況需整理、議價目標 1,050 萬">${escapeHtml(note)}</textarea>
+    <div><small><span class="favorite-note-count">${note.length}</span>/500</small><button type="button" class="favorite-note-save" data-source="${escapeHtml(item.source || "591")}" data-listing-id="${escapeHtml(item.id)}">儲存備註</button></div>
+  </details>`;
+};
+
 function realPriceButtonV16(item) {
   if (!item.is_favorite) return "";
   const disabled = !item.district || !item.address;
