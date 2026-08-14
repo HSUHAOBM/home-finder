@@ -184,3 +184,52 @@ document.querySelector("#favorite-workspace-content").addEventListener("click", 
   const button = event.target.closest(".real-price-period [data-months]");
   if (button) loadRealPriceV16(button.closest(".real-price-workspace"), Number(button.dataset.months));
 });
+
+state.houseTypeFilter = "";
+const houseTypeFiltersV16 = document.createElement("section");
+houseTypeFiltersV16.id = "house-type-filters";
+houseTypeFiltersV16.className = "house-type-filters";
+houseTypeFiltersV16.hidden = true;
+houseTypeFiltersV16.innerHTML = `<span>建物型態</span><div>
+  <button type="button" data-house-type="" class="active">全部</button>
+  <button type="button" data-house-type="透天厝">透天</button>
+  <button type="button" data-house-type="別墅">別墅</button>
+</div>`;
+document.querySelector("#results").insertAdjacentElement("beforebegin", houseTypeFiltersV16);
+
+const previousRenderResultsV16 = renderResults;
+renderResults = function renderResultsWithHouseTypeV16() {
+  const filtering = state.activeProfile === "透天別墅"
+    && state.houseTypeFilter && !String(state.resultQuery || "").trim();
+  const originalProfileItems = profileItems;
+  if (filtering) {
+    profileItems = function filteredHouseProfileItemsV16(profile, status) {
+      const items = originalProfileItems(profile, status);
+      return profile === "透天別墅"
+        ? items.filter((item) => item.property_type === state.houseTypeFilter)
+        : items;
+    };
+  }
+  try { previousRenderResultsV16(); } finally { profileItems = originalProfileItems; }
+  houseTypeFiltersV16.hidden = state.activeProfile !== "透天別墅"
+    || Boolean(String(state.resultQuery || "").trim());
+  houseTypeFiltersV16.querySelectorAll("button").forEach((button) => {
+    const active = button.dataset.houseType === state.houseTypeFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+};
+
+houseTypeFiltersV16.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-house-type]");
+  if (!button) return;
+  state.houseTypeFilter = button.dataset.houseType;
+  renderResults();
+});
+
+document.querySelectorAll(".goal-card").forEach((card) => {
+  card.addEventListener("click", () => {
+    if (card.dataset.profile !== "透天別墅") state.houseTypeFilter = "";
+    renderResults();
+  });
+});

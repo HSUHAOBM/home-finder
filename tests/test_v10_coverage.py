@@ -80,6 +80,32 @@ def test_full_scan_has_no_publish_day_limit_and_collects_to_1300(monkeypatch):
     assert diagnostics["publish_days"] == 0
 
 
+def test_house_daily_scan_keeps_older_active_listings(monkeypatch):
+    captured = {}
+
+    class FakeCrawler:
+        cache_expired = False
+        stats = {}
+
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def fetch(self):
+            return []
+
+    monkeypatch.setattr(web_app_v7, "TimedResaleCrawler", FakeCrawler)
+    settings = copy.deepcopy(web_app_v7.load_settings())
+    settings["search"]["publish_days"] = 5
+
+    _, diagnostics = web_app_v7._crawl_for_mode(
+        "透天別墅", settings, {"collection_max_price": 1300}, "daily",
+    )
+
+    assert captured["max_pages"] == settings["search"]["pages"]
+    assert captured["publish_days"] == 0
+    assert diagnostics["publish_days"] == 0
+
+
 def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
     captured = {}
     timestamps = iter([100.0, 225.4])

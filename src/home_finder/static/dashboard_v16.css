@@ -89,3 +89,9 @@
 .favorite-card-tools .favorite-note-compact,
 .favorite-card-tools .favorite-compare-toggle,
 .favorite-card-tools .real-price-entry { margin: 0; }
+.house-type-filters { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #faf9f5; }
+.house-type-filters[hidden] { display: none; }
+.house-type-filters > span { color: var(--muted); font-size: .75rem; font-weight: 850; }
+.house-type-filters > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.house-type-filters button { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--ink); font: inherit; font-size: .78rem; font-weight: 850; cursor: pointer; }
+.house-type-filters button.active { border-color: var(--green); background: var(--green); color: white; }

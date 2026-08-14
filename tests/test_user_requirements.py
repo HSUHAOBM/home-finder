@@ -44,6 +44,20 @@ def test_title_cannot_turn_condo_into_villa() -> None:
     assert "排除疑似混入的車墅廣告" in result.hard_failures[0]
 
 
+def test_house_type_with_collective_housing_floor_is_normalized_to_condo() -> None:
+    listing = home(
+        title="房仲標示稀有別墅", property_type="別墅",
+        current_floor=8, total_floors=15,
+    )
+    enriched = parse_detail_text(
+        listing,
+        "房屋資料 型態 ： 別墅 裝潢程度 ： 精緻裝潢 車位 ： 無 坪數說明",
+    )
+
+    assert enriched.property_type == "電梯大樓"
+    assert "依集合住宅排除" in enriched.data_warnings[0]
+
+
 def test_detail_structured_parking_overrides_title() -> None:
     listing = home(title="三房平車", parking_type=None, has_parking=None)
     body = "房屋資料 型態 ： 電梯大樓 裝潢程度 ： 簡易裝潢 車位 ： 無 坪數說明 主建物 ： 19.938坪"

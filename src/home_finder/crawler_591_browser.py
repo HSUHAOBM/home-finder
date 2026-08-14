@@ -83,6 +83,21 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     warnings = list(listing.data_warnings)
 
     property_type = type_match.group(1).strip() if type_match else listing.property_type
+    if property_type in {"透天厝", "別墅"} and listing.total_floors:
+        looks_like_collective_housing = (
+            listing.total_floors >= 6
+            or (
+                listing.current_floor is not None
+                and listing.current_floor != listing.total_floors
+            )
+        )
+        if looks_like_collective_housing:
+            warnings.append(
+                f"型態標示 {property_type}，但樓層為 "
+                f"{listing.current_floor or '?'} / {listing.total_floors} 樓，"
+                "依集合住宅排除"
+            )
+            property_type = "電梯大樓"
     parking_raw = parking_match.group(1).strip() if parking_match else None
     if parking_raw is None:
         parking_type = listing.parking_type

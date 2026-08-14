@@ -219,9 +219,16 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 page.locator('[data-profile="透天別墅"]').click()
                 exact = page.locator('.tab[data-status="exact_match"]')
                 expect(exact).to_have_class(re.compile(r"\bactive\b"))
+                house_types = page.locator("#house-type-filters")
+                expect(house_types).to_be_visible()
+                expect(house_types.locator("button")).to_have_count(3)
+                house_types.get_by_role("button", name="透天", exact=True).click()
                 expect(page.locator("#results")).to_contain_text(
                     "E2E 完全符合透天"
                 )
+                house_types.get_by_role("button", name="別墅", exact=True).click()
+                expect(page.locator("#results")).to_contain_text("目前沒有房源")
+                house_types.get_by_role("button", name="全部", exact=True).click()
 
                 pending = page.locator(
                     '.tab[data-status="needs_verification"]'

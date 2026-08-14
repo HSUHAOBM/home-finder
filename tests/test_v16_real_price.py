@@ -92,6 +92,8 @@ def test_v16_assets_launcher_and_api_validation():
     assert "社區實價" in script
     assert "目前收藏房源" in script
     assert "可能為本收藏房" in script
+    assert "data-house-type=\"透天厝\"" in script
+    assert "data-house-type=\"別墅\"" in script
     assert "同路段參考" not in script
     assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
     response = web_app_v16.app.test_client().post("/api/favorites/real-price", json={"source": "591中古屋", "id": "missing", "months": 24})

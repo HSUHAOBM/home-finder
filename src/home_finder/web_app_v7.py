@@ -259,6 +259,9 @@ def _crawl_for_mode(
     if mode == "full":
         search["pages"] = 10
         search["publish_days"] = 0
+    elif profile == "透天別墅":
+        # 透天量少且刊登週期長；每日搜尋也應保留仍有效的舊刊登。
+        search["publish_days"] = 0
     delay = max(2.0, float(source.get("delay_seconds", 2)))
     started = time.time()
     if profile == "預售屋":
