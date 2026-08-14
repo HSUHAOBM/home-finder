@@ -20,6 +20,7 @@ from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .kaohsiung_districts import ALL_DISTRICTS, DISTRICT_GROUPS, SECTION_IDS
 from .listing_history import annotate_history
 from .listing_identity import listing_history_key
+from .broker_watchlist import broker_alert, load_watchlist, update_watchlist
 from .result_store import (
     RANKING_VERSION,
     RESULT_SCHEMA_VERSION,
@@ -38,6 +39,7 @@ from .user_ranking_v6 import evaluate_all
 CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
 DIAGNOSTICS_PATH = base.BASE_DIR / "data" / "search_diagnostics.json"
 HISTORY_PATH = base.BASE_DIR / "data" / "listing_history.json"
+BROKER_WATCHLIST_PATH = base.BASE_DIR / "data" / "broker_watchlist.json"
 SEARCH_HISTORY_PATH = base.BASE_DIR / "data" / "search_history.json"
 SETTINGS_HISTORY_PATH = base.BASE_DIR / "data" / "settings_history.json"
 _result_upgrade_lock = threading.Lock()
@@ -213,7 +215,14 @@ def _add_display_metrics(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
-    return _add_display_metrics(previous.build_dashboard_payload(records))
+    payload = _add_display_metrics(previous.build_dashboard_payload(records))
+    watchlist = load_watchlist(BROKER_WATCHLIST_PATH)
+    for cards in payload.get("groups", {}).values():
+        for card in cards:
+            card["broker_watch_alert"] = broker_alert(
+                card.get("source"), card.get("broker_name"), watchlist
+            )
+    return payload
 
 
 def _upgrade_saved_results_if_needed() -> bool:
@@ -399,6 +408,8 @@ def _run_search(profile: str, mode: str) -> None:
             )
         else:
             listings = previous.merge_search_results(existing, fetched, profile, mode)
+
+        update_watchlist(listings, BROKER_WATCHLIST_PATH)
 
         base._update_state(phase="ranking", message="正在整理有效房源與資料完整度…")
         records = [item.to_dict() for item in evaluate_all(listings, settings)]

@@ -58,6 +58,16 @@ def test_house_type_with_collective_housing_floor_is_normalized_to_condo() -> No
     assert "依集合住宅排除" in enriched.data_warnings[0]
 
 
+def test_591_detail_reads_broker_company() -> None:
+    listing = home(property_type="別墅", current_floor=3, total_floors=3)
+    enriched = parse_detail_text(
+        listing,
+        "房屋資料 型態：別墅 裝潢程度：尚未裝潢 "
+        "行業資質 經紀業名稱：聯旭地產開發有限公司 屋況特色",
+    )
+    assert enriched.broker_name == "聯旭地產開發有限公司"
+
+
 def test_detail_structured_parking_overrides_title() -> None:
     listing = home(title="三房平車", parking_type=None, has_parking=None)
     body = "房屋資料 型態 ： 電梯大樓 裝潢程度 ： 簡易裝潢 車位 ： 無 坪數說明 主建物 ： 19.938坪"

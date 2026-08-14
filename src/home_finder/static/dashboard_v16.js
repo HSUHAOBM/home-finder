@@ -49,6 +49,12 @@ function realPriceButtonV16(item) {
 const previousListingCardV16 = listingCard;
 listingCard = function listingCardV16(item) {
   let html = previousListingCardV16(item);
+  if (item.broker_watch_alert) {
+    const alert = item.broker_watch_alert;
+    const count = Number(alert.incident_count || 0);
+    const warning = `<aside class="broker-watch-alert"><strong>房仲刊登提醒</strong><span>${escapeHtml(alert.broker_name)} 過去有 ${count} 筆建物型態與樓層資料矛盾，請逐項查證。</span></aside>`;
+    html = html.replace("<h2>", `${warning}<h2>`);
+  }
   if (!item.is_favorite) return html;
   html = html.replace("<h2>", `${realPriceButtonV16(item)}<h2>`);
   const template = document.createElement("template");

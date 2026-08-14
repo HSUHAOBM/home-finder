@@ -95,3 +95,5 @@
 .house-type-filters > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .house-type-filters button { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--ink); font: inherit; font-size: .78rem; font-weight: 850; cursor: pointer; }
 .house-type-filters button.active { border-color: var(--green); background: var(--green); color: white; }
+.broker-watch-alert { display: grid; gap: 3px; margin: 10px 0; padding: 10px 12px; border: 1px solid #d98e7e; border-left-width: 4px; border-radius: 10px; background: #fff1ed; color: var(--brick); font-size: .78rem; }
+.broker-watch-alert strong { font-size: .82rem; }

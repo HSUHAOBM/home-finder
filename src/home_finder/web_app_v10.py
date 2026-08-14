@@ -107,6 +107,7 @@ def api_import_listing_v10():
         listings = result_app.merge_search_results(
             existing, [imported], profile, "daily"
         )
+        crawl_app.update_watchlist(listings, crawl_app.BROKER_WATCHLIST_PATH)
         records = [
             item.to_dict() for item in evaluate_all(listings, settings)
         ]
