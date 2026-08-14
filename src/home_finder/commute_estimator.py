@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -11,6 +12,21 @@ from .storage import atomic_write_json
 
 
 USER_AGENT = "KaohsiungHomeFinder/1.0 (local personal home search)"
+
+
+def _destination_candidates(destination: dict[str, str]) -> list[str]:
+    address = destination["address"].strip()
+    candidates = [address]
+    simplified = re.sub(
+        r"(?<=[區鄉鎮市])[^市縣區鄉鎮村里路街]{1,8}里", "", address,
+    )
+    if simplified != address:
+        candidates.append(simplified)
+    landmark = destination.get("name", "").split("・")[-1].strip()
+    area = re.match(r"(.+?[市縣].+?[區鄉鎮市])", address)
+    if area and landmark and landmark not in {"公司", "住家"}:
+        candidates.append(f"{area.group(1)} {landmark}")
+    return list(dict.fromkeys(candidates))
 
 
 def _get_json(url: str, *, timeout: int = 20) -> dict[str, Any] | list[Any]:
@@ -47,14 +63,21 @@ def estimate_commute(
     for address_index, address in enumerate(addresses):
         cached = geocodes.get(address)
         if not cached:
-            candidates = [address, *((origin_fallbacks or []) if address_index == 0 else [])]
+            candidates = (
+                [address, *(origin_fallbacks or [])]
+                if address_index == 0
+                else _destination_candidates(destinations[address_index - 1])
+            )
             candidates = list(dict.fromkeys(candidate.strip() for candidate in candidates if candidate.strip()))
             matched_address = None
             for candidate in candidates:
                 query = urllib.parse.urlencode({"q": candidate, "format": "jsonv2", "limit": 1, "countrycodes": "tw"})
                 result = get_json(f"https://nominatim.openstreetmap.org/search?{query}")
                 if isinstance(result, list) and result:
-                    cached = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
+                    cached = {
+                        "lat": float(result[0]["lat"]), "lon": float(result[0]["lon"]),
+                        "resolved_address": candidate,
+                    }
                     matched_address = candidate
                     break
                 sleep(1.05)
@@ -63,11 +86,13 @@ def estimate_commute(
             geocodes[address] = cached
             if matched_address and matched_address != address:
                 geocodes[matched_address] = cached
-                if address_index == 0:
-                    resolved_origin = matched_address
+            if address_index == 0:
+                resolved_origin = str(cached.get("resolved_address") or address)
             atomic_write_json(cache_path, cache)
             sleep(1.05)
         coordinates.append(cached)
+        if address_index == 0:
+            resolved_origin = str(cached.get("resolved_address") or resolved_origin)
 
     route_key = "|".join(addresses)
     cached_route = routes.get(route_key)
@@ -84,6 +109,7 @@ def estimate_commute(
         cached_route = [{
             "name": destination["name"],
             "address": destination["address"],
+            "resolved_address": str(coordinates[index + 1].get("resolved_address") or destination["address"]),
             "minutes": round(float(durations[index]) / 60),
             "distance_km": round(float(distances[index]) / 1000, 1),
         } for index, destination in enumerate(destinations)]

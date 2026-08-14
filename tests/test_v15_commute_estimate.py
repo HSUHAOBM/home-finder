@@ -26,8 +26,8 @@ def test_estimate_geocodes_then_uses_single_route_table_request(tmp_path):
         cache_path=tmp_path / "commute.json", get_json=fake_get, sleep=lambda _: None,
     )
     assert result["estimates"] == [
-        {"name": "公司", "address": "高雄市燕巢區義大路1號", "minutes": 25, "distance_km": 18.0},
-        {"name": "住家", "address": "高雄市楠梓區常德路333號", "minutes": 10, "distance_km": 6.5},
+        {"name": "公司", "address": "高雄市燕巢區義大路1號", "resolved_address": "高雄市燕巢區義大路1號", "minutes": 25, "distance_km": 18.0},
+        {"name": "住家", "address": "高雄市楠梓區常德路333號", "resolved_address": "高雄市楠梓區常德路333號", "minutes": 10, "distance_km": 6.5},
     ]
     assert len([url for url in calls if "table/v1/driving" in url]) == 1
 
@@ -62,6 +62,28 @@ def test_estimate_falls_back_from_community_to_road(tmp_path):
     assert result["resolved_origin"] == "高雄市仁武區八德北路"
     assert result["estimates"][0]["minutes"] == 20
     assert len([url for url in calls if "nominatim" in url]) == 3
+
+
+def test_estimate_falls_back_from_village_address_to_landmark(tmp_path):
+    calls = []
+
+    def fake_get(url):
+        calls.append(url)
+        if "nominatim" in url:
+            if "%E8%A7%92%E5%AE%BF%E9%87%8C" in url:
+                return []
+            return [{"lat": "22.76", "lon": "120.36"}]
+        return {"code": "Ok", "durations": [[1500]], "distances": [[18000]]}
+
+    result = estimate_commute(
+        "高雄市仁武區八德北路",
+        [{"name": "公司・義大醫院", "address": "高雄市燕巢區角宿里義大路1號"}],
+        cache_path=tmp_path / "commute.json", get_json=fake_get, sleep=lambda _: None,
+    )
+    estimate = result["estimates"][0]
+    assert estimate["resolved_address"] == "高雄市燕巢區義大路1號"
+    assert estimate["minutes"] == 25
+    assert any("%E7%BE%A9%E5%A4%A7%E8%B7%AF1%E8%99%9F" in url for url in calls)
 
 
 def test_v15_assets_and_launcher_are_active():

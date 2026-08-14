@@ -38,7 +38,7 @@ document.querySelector("#favorite-workspace-content").addEventListener("click", 
     const payload = await readJsonResponse(response, "通勤估算失敗");
     const resolved = payload.resolved_origin && payload.resolved_origin !== payload.origin
       ? `<small>社區名稱無法定位，已改用 ${escapeHtml(payload.resolved_origin)} 估算。</small>` : "";
-    results.innerHTML = `${resolved}${payload.estimates.map((item) => `<div><strong>${escapeHtml(item.name)}</strong><span>約 ${escapeHtml(item.minutes)} 分鐘・${escapeHtml(item.distance_km)} km</span></div>`).join("")}`;
+    results.innerHTML = `${resolved}${payload.estimates.map((item) => `<div><strong>${escapeHtml(item.name)}</strong><span>約 ${escapeHtml(item.minutes)} 分鐘・${escapeHtml(item.distance_km)} km</span>${item.resolved_address && item.resolved_address !== item.address ? `<small>已改用 ${escapeHtml(item.resolved_address)} 定位</small>` : ""}</div>`).join("")}`;
     button.textContent = "重新顯示估算";
   } catch (error) {
     results.innerHTML = `<p>${escapeHtml(error.message)}；仍可使用下方 Google Maps 路線。</p>`;
