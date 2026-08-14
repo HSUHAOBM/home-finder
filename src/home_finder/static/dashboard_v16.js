@@ -77,10 +77,23 @@ function realPriceNumberV16(value, suffix = "") {
 }
 
 function realPriceWorkspaceV16(item) {
+  const floor = item.floor == null ? "待確認" : `${realPriceNumberV16(item.floor)} / ${realPriceNumberV16(item.total_floors)} 樓`;
+  const layout = item.rooms == null ? "待確認" : `${realPriceNumberV16(item.rooms)} 房・${realPriceNumberV16(item.baths)} 衛`;
   return `<section class="real-price-workspace" data-source="${escapeHtml(item.source || "591")}" data-listing-id="${escapeHtml(item.id)}">
     <span class="section-label">OFFICIAL REAL PRICE</span>
     <h2>${escapeHtml(item.community || "社區實價登錄")}</h2>
     <p>${escapeHtml(item.district || "")} ${escapeHtml(item.address || "地址待確認")}</p>
+    <section class="real-price-listing-reference" aria-label="目前收藏房源">
+      <header><strong>目前收藏房源</strong><span>實價資料將與這張房卡比較</span></header>
+      <div>
+        <span><small>開價</small><b>${realPriceNumberV16(item.price, " 萬")}</b></span>
+        <span><small>權狀坪數</small><b>${realPriceNumberV16(item.total_area, " 坪")}</b></span>
+        <span><small>樓層</small><b>${escapeHtml(floor)}</b></span>
+        <span><small>屋齡</small><b>${realPriceNumberV16(item.age, " 年")}</b></span>
+        <span><small>格局</small><b>${escapeHtml(layout)}</b></span>
+        <span><small>車位</small><b>${escapeHtml(item.parking || "待確認")}</b></span>
+      </div>
+    </section>
     <div class="real-price-period" role="group" aria-label="查詢期間">
       <button type="button" data-months="6">近 6 個月</button>
       <button type="button" data-months="12" class="active">近 1 年</button>
@@ -107,7 +120,7 @@ function renderRealPriceV16(box, payload) {
       <div><small>與中位數比較</small><strong>${comparison == null ? "待確認" : `${comparison >= 0 ? "+" : ""}${comparison} 萬／坪`}</strong></div>
     </div>` : `<div class="real-price-empty"><strong>最近期間查無相近成交</strong><span>可前往官方網站自行調整條件。</span></div>`;
   const closestHtml = (payload.closest_matches || []).length ? `<section class="closest-matches">
-    <h3>最相近成交</h3><p>相似度只用來協助排序，不代表已確認為同一戶。<details class="similarity-help"><summary>相似度怎麼算？</summary><span>社區／門牌 35%、坪數 20%、樓層 10%、總樓層 10%、屋齡 10%、房數 8%、車位 4%、建物型態 3%；缺少的欄位不列入分母。</span></details></p>
+    <h3>最相近成交</h3><p>相似度只用來協助排序；「可能為本收藏房」仍需以完整門牌或謄本確認。<details class="similarity-help"><summary>相似度怎麼算？</summary><span>社區／門牌 20%、權狀坪數 25%、樓層 20%、總樓層 10%、屋齡 10%、房數 8%、車位 4%、建物型態 3%；缺少的欄位不列入分母。歷史成交屋齡會依完工年換算至目前再比較。門牌範圍、樓層完全相同，且坪數差在 1 坪或 3% 內、總分達 90%，才標示「可能為本收藏房」。</span></details></p>
     <div>${payload.closest_matches.map((row, index) => `<article class="closest-match ${index === 0 ? "best" : ""}">
       <header><span>${index === 0 ? "最接近" : `第 ${index + 1} 名`}</span><strong>${escapeHtml(row.similarity_label)} ${row.similarity_score}%</strong></header>
       <b>${escapeHtml(row.date)}．${escapeHtml(row.address)}</b>

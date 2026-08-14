@@ -29,6 +29,14 @@
 .real-price-open:disabled { opacity: .5; cursor: not-allowed; }
 .real-price-workspace > h2 { margin: 6px 0 2px; }
 .real-price-workspace > p { margin: 0; color: var(--muted); }
+.real-price-listing-reference { margin: 14px 0 4px; padding: 12px; border: 1px solid #b9cfc0; border-radius: 12px; background: #f1f8f3; }
+.real-price-listing-reference header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.real-price-listing-reference header strong { color: var(--green); }
+.real-price-listing-reference header span { color: var(--muted); font-size: .75rem; }
+.real-price-listing-reference > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.real-price-listing-reference > div > span { display: grid; gap: 2px; padding: 8px 9px; border-radius: 8px; background: rgba(255, 255, 255, .72); }
+.real-price-listing-reference small { color: var(--muted); }
+.real-price-listing-reference b { overflow-wrap: anywhere; }
 .real-price-period { display: flex; gap: 7px; margin: 18px 0 12px; }
 .real-price-period button { padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--ink); font: inherit; font-size: .78rem; font-weight: 850; cursor: pointer; }
 .real-price-period button.active { border-color: var(--green); background: var(--green); color: white; }
@@ -71,6 +79,8 @@
   .real-price-summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
   .real-price-period { overflow-x: auto; }
   .real-price-period button { flex: 0 0 auto; }
+  .real-price-listing-reference header { display: grid; }
+  .real-price-listing-reference > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .closest-matches > div { grid-template-columns: 1fr; }
 }
 .favorite-card-management { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }

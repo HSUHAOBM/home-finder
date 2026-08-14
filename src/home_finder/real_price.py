@@ -163,21 +163,21 @@ def _rank_record(item: dict[str, Any], listing: dict[str, Any], current: date) -
     community = _text(listing.get("community"))
     address_match = _number_matches(listing.get("address"), item["address"])
     community_match = bool(community and community in _text(item["address"] + item["note"]))
-    weight += 35
+    weight += 20
     if community_match:
-        score += 35
+        score += 20
         reasons.append("社區名稱吻合")
     elif address_match:
-        score += 33
+        score += 20
         reasons.append("門牌範圍吻合")
     else:
         reasons.append("同路段")
 
     listing_area = _number(listing.get("total_area"))
     if listing_area:
-        weight += 20
+        weight += 25
         closeness = _closeness(listing_area, item["area_ping"], max(listing_area * 0.4, 8))
-        score += 20 * closeness
+        score += 25 * closeness
         delta = round(item["area_ping"] - listing_area, 1)
         (reasons if abs(delta) <= listing_area * 0.1 else differences).append(
             f"坪數{'相近' if abs(delta) <= listing_area * 0.1 else f'差 {delta:+g} 坪'}"
@@ -194,8 +194,8 @@ def _rank_record(item: dict[str, Any], listing: dict[str, Any], current: date) -
 
     listing_floor = _number(listing.get("floor"))
     if listing_floor and item.get("floor_number"):
-        weight += 10
-        score += 10 * _closeness(listing_floor, item["floor_number"], 8)
+        weight += 20
+        score += 20 * _closeness(listing_floor, item["floor_number"], 8)
         delta = item["floor_number"] - listing_floor
         (reasons if abs(delta) <= 2 else differences).append(
             "樓層相近" if abs(delta) <= 2 else f"成交樓層差 {delta:+g} 層"
@@ -211,6 +211,8 @@ def _rank_record(item: dict[str, Any], listing: dict[str, Any], current: date) -
             differences.append(f"總樓層 {item['total_floors']} 層")
 
     listing_age = _number(listing.get("age"))
+    # 房卡屋齡是查詢當下的屋齡，因此將歷史成交的完工年也換算到
+    # 同一查詢日再比較，避免把多年前成交當時的屋齡直接拿來比。
     transaction_age = current.year - item["completion_year"] if item.get("completion_year") else None
     item["age_at_query"] = transaction_age
     if listing_age is not None and transaction_age is not None:
@@ -242,10 +244,19 @@ def _rank_record(item: dict[str, Any], listing: dict[str, Any], current: date) -
             differences.append(f"型態為 {item['building_type']}")
 
     normalized = round(score / weight * 100) if weight else 0
+    same_unit_signals = bool(
+        address_match
+        and listing_floor is not None
+        and item.get("floor_number") == listing_floor
+        and listing_area is not None
+        and abs(item["area_ping"] - listing_area) <= max(1.0, listing_area * 0.03)
+    )
     same_building_signals = int(community_match or address_match)
     same_building_signals += int(bool(listing_total and item.get("total_floors") == listing_total))
     same_building_signals += int(bool(listing_age is not None and transaction_age is not None and abs(transaction_age - listing_age) <= 1))
-    if same_building_signals >= 3 and normalized >= 85:
+    if same_unit_signals and normalized >= 90:
+        label = "可能為本收藏房"
+    elif same_building_signals >= 3 and normalized >= 85:
         label = "極可能同一棟"
     elif same_building_signals >= 2 and normalized >= 75:
         label = "可能同一棟"
@@ -334,7 +345,7 @@ def query_real_price(
         "address": listing.get("address"),
         "road": road,
         "comparison_scope": (
-            "依門牌、坪數、房數、樓層、總樓層、屋齡與車位綜合排序"
+            "依門牌、權狀坪數、樓層、總樓層、屋齡、房數與車位綜合排序"
             if selected else "同路段"
         ),
         "months": months,

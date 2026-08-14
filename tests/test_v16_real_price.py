@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from home_finder import web_app_v16
-from home_finder.real_price import KAOHSIUNG_CSV, _recent_seasons, query_real_price
+from home_finder.real_price import KAOHSIUNG_CSV, _rank_record, _recent_seasons, query_real_price
 
 
 def _official_zip(path: Path, rows: list[dict[str, str]]) -> None:
@@ -39,7 +39,7 @@ def test_query_prefers_matching_doorplate_and_summarizes(tmp_path: Path):
     assert result["summary"]["count"] == 4
     assert result["transactions"][0]["address"] == "常德路331~360號"
     assert result["listing_unit_price"] == 36
-    assert result["comparison_scope"] == "依門牌、坪數、房數、樓層、總樓層、屋齡與車位綜合排序"
+    assert result["comparison_scope"] == "依門牌、權狀坪數、樓層、總樓層、屋齡、房數與車位綜合排序"
 
 
 def test_city_and_district_prefix_do_not_break_road_matching(tmp_path: Path):
@@ -72,6 +72,17 @@ def test_similarity_ranks_same_building_signals_before_newer_but_different_trans
     assert "門牌範圍吻合" in best["similarity_reasons"] or "社區名稱吻合" in best["similarity_reasons"]
 
 
+def test_similarity_marks_probable_favorite_listing_and_ages_transaction_to_query_date(tmp_path: Path):
+    best = _rank_record(
+        {"date": "2021-05-01", "address": "常德路331~360號", "note": "", "area_ping": 30.0, "rooms": 3, "floor_number": 8, "total_floors": 15, "completion_year": 2016, "parking": "坡道平面", "building_type": "住宅大樓"},
+        {"district": "楠梓區", "address": "常德路333號", "price": 1080, "total_area": 30, "rooms": 3, "floor": 8, "total_floors": 15, "age": 10, "parking": "平面式", "property_type": "住宅大樓"},
+        date(2026, 8, 12),
+    )
+    assert best["age_at_query"] == 10
+    assert best["similarity_score"] >= 90
+    assert best["similarity_label"] == "可能為本收藏房"
+
+
 def test_v16_assets_launcher_and_api_validation():
     with web_app_v16.app.test_request_context("/"):
         page = web_app_v16.index_v16()
@@ -79,6 +90,8 @@ def test_v16_assets_launcher_and_api_validation():
     script = (Path(web_app_v16.__file__).with_name("static") / "dashboard_v16.js").read_text(encoding="utf-8")
     assert "/static/dashboard_v16.css" in page
     assert "社區實價" in script
+    assert "目前收藏房源" in script
+    assert "可能為本收藏房" in script
     assert "同路段參考" not in script
     assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
     response = web_app_v16.app.test_client().post("/api/favorites/real-price", json={"source": "591中古屋", "id": "missing", "months": 24})
