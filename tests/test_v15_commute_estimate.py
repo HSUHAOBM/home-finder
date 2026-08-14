@@ -86,14 +86,11 @@ def test_estimate_falls_back_from_village_address_to_landmark(tmp_path):
     assert any("%E7%BE%A9%E5%A4%A7%E8%B7%AF1%E8%99%9F" in url for url in calls)
 
 
-def test_v15_assets_and_launcher_are_active():
+def test_v15_removes_osrm_ui_and_api_but_keeps_launcher_compatible():
     with web_app_v15.app.test_request_context("/"):
         page = web_app_v15.index_v15()
     root = Path(web_app_v15.__file__).parents[2]
-    script = (Path(web_app_v15.__file__).with_name("static") / "dashboard_v15.js").read_text(encoding="utf-8")
-    assert "/static/dashboard_v15.css" in page
-    assert "估算通勤時間" in script
-    assert "不含即時路況" in script
-    assert "是否同意本次瀏覽期間使用" in script
-    assert "origin_fallbacks" in script
+    assert "/static/dashboard_v15.css" not in page
+    assert "/static/dashboard_v15.js" not in page
+    assert web_app_v15.app.test_client().post("/api/commute-estimate", json={}).status_code == 404
     assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")

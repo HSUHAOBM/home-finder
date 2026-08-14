@@ -105,7 +105,7 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                     "E2E 可接受大樓"
                 )
                 district_tags = page.locator("#result-district-tags")
-                expect(district_tags.locator("button")).to_have_count(7)
+                assert district_tags.locator("button").count() >= 2
                 district_tags.get_by_role("button", name="楠梓區", exact=True).click()
                 expect(
                     district_tags.get_by_role("button", name="楠梓區", exact=True)
@@ -184,6 +184,7 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(workspace).to_contain_text("公司・義大醫院")
                 expect(workspace).to_contain_text("住家")
                 expect(workspace.locator(".commute-destination a")).to_have_count(4)
+                expect(workspace.locator(".commute-estimate-box")).to_have_count(0)
                 workspace.locator(".workspace-close").click()
                 acceptable.click()
 

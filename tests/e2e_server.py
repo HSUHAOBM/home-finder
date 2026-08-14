@@ -185,7 +185,6 @@ def isolated_app(data_dir: Path) -> Iterator[Any]:
         )
         atomic_write_json(web_app_v8.FAVORITES_PATH, {"version": 2, "items": []})
         web_app_v15.previous.COMMUTE_SETTINGS_PATH = data_dir / "commute-settings.json"
-        web_app_v15.COMMUTE_CACHE_PATH = data_dir / "commute-cache.json"
         atomic_write_json(web_app_v15.previous.COMMUTE_SETTINGS_PATH, {
             "destinations": [
                 {"name": "公司・義大醫院", "address": "高雄市燕巢區義大路1號"},

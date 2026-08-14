@@ -102,6 +102,14 @@ def test_v7_page_loads_region_and_filter_controls():
     assert "dashboard_v7.css" in page
 
 
+def test_settings_save_button_discloses_progress_and_saved_district_count():
+    root = Path(web_app_v7.__file__).parent
+    script = (root / "static" / "dashboard_v3.js").read_text(encoding="utf-8")
+
+    assert "儲存中…" in script
+    assert "已儲存 ${payload.settings.districts.length} 區 ✓" in script
+
+
 def test_empty_full_scan_preserves_existing_and_miss_count(tmp_path, monkeypatch):
     history = tmp_path / "history.json"
     history.write_text(

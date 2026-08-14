@@ -181,12 +181,12 @@ function collectSettings() {
 }
 
 async function saveSettings(event) {
-  event.preventDefault(); const button = $("#settings-save"); button.disabled = true; $("#settings-error").textContent = "";
+  event.preventDefault(); const button = $("#settings-save"); const originalLabel = button.textContent; button.disabled = true; button.textContent = "儲存中…"; $("#settings-error").textContent = "";
   try {
     const response = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(collectSettings()) });
     const payload = await readJsonResponse(response, "儲存失敗");
-    state.settings = payload.settings; state.settingsHistory = payload.history || state.settingsHistory; state.payload = payload.results; renderSettingsHistory(); renderNavigation(); renderResults(); $("#settings-dialog").close(); $("#status-message").textContent = "條件已儲存為新版本，並套用到目前結果";
-  } catch (error) { $("#settings-error").textContent = error.message; } finally { button.disabled = false; }
+    state.settings = payload.settings; state.settingsHistory = payload.history || state.settingsHistory; state.payload = payload.results; renderSettingsHistory(); renderNavigation(); renderResults(); button.textContent = `已儲存 ${payload.settings.districts.length} 區 ✓`; await new Promise((resolve) => setTimeout(resolve, 650)); $("#settings-dialog").close(); $("#status-message").textContent = `條件已儲存 ${payload.settings.districts.length} 區，並套用到目前結果`;
+  } catch (error) { $("#settings-error").textContent = error.message; } finally { button.disabled = false; button.textContent = originalLabel; }
 }
 
 function stopStatusPolling() {
