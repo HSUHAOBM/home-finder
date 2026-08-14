@@ -40,6 +40,7 @@ CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
 DIAGNOSTICS_PATH = base.BASE_DIR / "data" / "search_diagnostics.json"
 HISTORY_PATH = base.BASE_DIR / "data" / "listing_history.json"
 BROKER_WATCHLIST_PATH = base.BASE_DIR / "data" / "broker_watchlist.json"
+DAY_RANGE_PAGES = {"days_7": 5, "days_10": 7, "days_15": 15}
 SEARCH_HISTORY_PATH = base.BASE_DIR / "data" / "search_history.json"
 SETTINGS_HISTORY_PATH = base.BASE_DIR / "data" / "settings_history.json"
 _result_upgrade_lock = threading.Lock()
@@ -270,6 +271,7 @@ def _crawl_for_mode(
         search["publish_days"] = 0
     elif mode.startswith("days_"):
         search["publish_days"] = int(mode.removeprefix("days_"))
+        search["pages"] = DAY_RANGE_PAGES[mode]
     elif profile == "透天別墅":
         # 透天量少且刊登週期長；每日搜尋也應保留仍有效的舊刊登。
         search["publish_days"] = 0

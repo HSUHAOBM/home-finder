@@ -22,9 +22,9 @@ goalActionBarV6.insertAdjacentHTML(
   `<label class="search-mode-control">搜尋範圍
     <select id="search-mode">
       <option value="daily">每日更新（近 3 天／3 頁）</option>
-      <option value="days_7">近 7 天</option>
-      <option value="days_10">近 10 天</option>
-      <option value="days_15">近 15 天</option>
+      <option value="days_7">近 7 天／每區 5 頁</option>
+      <option value="days_10">近 10 天／每區 7 頁</option>
+      <option value="days_15">近 15 天／每區 15 頁</option>
       <option value="full">完整盤點（近 30 天／10 頁）</option>
     </select>
   </label>`
@@ -122,8 +122,9 @@ renderStatus = function renderStatusV6(status) {
   document.querySelector("#search-mode").disabled = status.running;
   if (status.running) {
     const modeLabels = {
-      full: "完整盤點", days_7: "近 7 天", days_10: "近 10 天",
-      days_15: "近 15 天", daily: "每日更新",
+      full: "完整盤點", days_7: "近 7 天／每區 5 頁",
+      days_10: "近 10 天／每區 7 頁",
+      days_15: "近 15 天／每區 15 頁", daily: "每日更新",
     };
     const mode = modeLabels[status.search_mode] || "每日更新";
     document.querySelector("#selected-search-label").textContent = `正在${mode}`;

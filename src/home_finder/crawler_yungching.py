@@ -168,8 +168,8 @@ class BrowserYungchingCrawler(Browser591Crawler):
         super().__init__(districts=districts, max_details=max_details, delay_seconds=delay_seconds, headless=headless, cache_path=cache_path, sleep=sleep)
         if profile not in PROFILE_TYPES:
             raise ValueError(f"永慶不支援的目標：{profile}")
-        if not 1 <= max_pages <= 10:
-            raise ValueError("永慶 max_pages 必須介於 1 到 10")
+        if not 1 <= max_pages <= 15:
+            raise ValueError("永慶 max_pages 必須介於 1 到 15")
         self.profile = profile
         self.max_pages = max_pages
         self.max_price = float(max_price)

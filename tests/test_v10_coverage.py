@@ -107,11 +107,11 @@ def test_house_daily_scan_keeps_older_active_listings(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("mode", "expected_days"),
-    [("days_7", 7), ("days_10", 10), ("days_15", 15)],
+    ("mode", "expected_days", "expected_pages"),
+    [("days_7", 7, 5), ("days_10", 10, 7), ("days_15", 15, 15)],
 )
 def test_explicit_day_range_overrides_crawl_publish_days(
-    monkeypatch, mode, expected_days
+    monkeypatch, mode, expected_days, expected_pages
 ):
     captured = {}
 
@@ -133,7 +133,9 @@ def test_explicit_day_range_overrides_crawl_publish_days(
     )
 
     assert captured["publish_days"] == expected_days
+    assert captured["max_pages"] == expected_pages
     assert diagnostics["publish_days"] == expected_days
+    assert diagnostics["pages_requested"] == expected_pages
 
 
 def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):

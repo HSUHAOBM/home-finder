@@ -51,8 +51,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         super().__init__(districts=districts, max_details=max_details, **kwargs)
         if profile not in PROFILE_SHAPES:
             raise ValueError(f"不支援的中古屋目標：{profile}")
-        if not 3 <= max_pages <= 10:
-            raise ValueError("max_pages 必須介於 3 到 10")
+        if not 3 <= max_pages <= 15:
+            raise ValueError("max_pages 必須介於 3 到 15")
         if publish_days not in {0, 1, 3, 5, 7, 10, 15, 30}:
             raise ValueError("publish_days 不支援")
         self.profile = profile
