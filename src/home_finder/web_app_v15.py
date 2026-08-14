@@ -23,11 +23,19 @@ def _destinations() -> list[dict[str, str]]:
 
 @app.post("/api/commute-estimate")
 def api_commute_estimate_v15():
-    origin = str((request.get_json(silent=True) or {}).get("origin") or "").strip()
+    payload = request.get_json(silent=True) or {}
+    origin = str(payload.get("origin") or "").strip()
+    origin_fallbacks = [
+        str(value).strip() for value in (payload.get("origin_fallbacks") or [])
+        if isinstance(value, str) and value.strip()
+    ][:3]
     if not origin or len(origin) > 150:
         return jsonify({"error": "房源地址不完整，無法估算通勤"}), 400
     try:
-        result = estimate_commute(origin, _destinations(), cache_path=COMMUTE_CACHE_PATH)
+        result = estimate_commute(
+            origin, _destinations(), cache_path=COMMUTE_CACHE_PATH,
+            origin_fallbacks=origin_fallbacks,
+        )
         return jsonify(result)
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         return jsonify({"error": str(exc)}), 400

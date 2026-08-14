@@ -34,6 +34,7 @@ def estimate_commute(
     destinations: list[dict[str, str]],
     *,
     cache_path: Path,
+    origin_fallbacks: list[str] | None = None,
     get_json=_get_json,
     sleep=time.sleep,
 ) -> dict[str, Any]:
@@ -42,15 +43,28 @@ def estimate_commute(
     routes = cache.setdefault("routes", {})
     addresses = [origin, *[item["address"] for item in destinations]]
     coordinates: list[dict[str, float]] = []
-    for address in addresses:
+    resolved_origin = origin
+    for address_index, address in enumerate(addresses):
         cached = geocodes.get(address)
         if not cached:
-            query = urllib.parse.urlencode({"q": address, "format": "jsonv2", "limit": 1, "countrycodes": "tw"})
-            result = get_json(f"https://nominatim.openstreetmap.org/search?{query}")
-            if not isinstance(result, list) or not result:
+            candidates = [address, *((origin_fallbacks or []) if address_index == 0 else [])]
+            candidates = list(dict.fromkeys(candidate.strip() for candidate in candidates if candidate.strip()))
+            matched_address = None
+            for candidate in candidates:
+                query = urllib.parse.urlencode({"q": candidate, "format": "jsonv2", "limit": 1, "countrycodes": "tw"})
+                result = get_json(f"https://nominatim.openstreetmap.org/search?{query}")
+                if isinstance(result, list) and result:
+                    cached = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
+                    matched_address = candidate
+                    break
+                sleep(1.05)
+            if not cached:
                 raise ValueError(f"無法定位：{address}")
-            cached = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
             geocodes[address] = cached
+            if matched_address and matched_address != address:
+                geocodes[matched_address] = cached
+                if address_index == 0:
+                    resolved_origin = matched_address
             atomic_write_json(cache_path, cache)
             sleep(1.05)
         coordinates.append(cached)
@@ -75,4 +89,4 @@ def estimate_commute(
         } for index, destination in enumerate(destinations)]
         routes[route_key] = cached_route
         atomic_write_json(cache_path, cache)
-    return {"origin": origin, "estimates": cached_route, "cached": was_cached}
+    return {"origin": origin, "resolved_origin": resolved_origin, "estimates": cached_route, "cached": was_cached}

@@ -2,8 +2,12 @@ const previousCommuteLinksV15 = commuteLinksV14;
 commuteLinksV14 = function commuteLinksV15(item) {
   const origin = fullAddressV14(item);
   const links = previousCommuteLinksV15(item);
+  const rawAddress = String(item.address || "").trim();
+  const roadFallback = rawAddress
+    ? (rawAddress.startsWith("高雄市") ? rawAddress : `高雄市${item.district || ""}${rawAddress}`)
+    : "";
   if (!origin) return links;
-  return `<div class="commute-estimate-box" data-commute-origin="${escapeHtml(origin)}">
+  return `<div class="commute-estimate-box" data-commute-origin="${escapeHtml(origin)}" data-commute-fallback="${escapeHtml(roadFallback)}">
     <button class="commute-estimate-button" type="button">估算通勤時間</button>
     <small>OSRM 一般開車估算，不含即時路況；機車僅供參考。</small>
     <div class="commute-estimate-results"></div>
@@ -26,10 +30,15 @@ document.querySelector("#favorite-workspace-content").addEventListener("click", 
   try {
     const response = await fetch("/api/commute-estimate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin: box.dataset.commuteOrigin }),
+      body: JSON.stringify({
+        origin: box.dataset.commuteOrigin,
+        origin_fallbacks: box.dataset.commuteFallback ? [box.dataset.commuteFallback] : [],
+      }),
     });
     const payload = await readJsonResponse(response, "通勤估算失敗");
-    results.innerHTML = payload.estimates.map((item) => `<div><strong>${escapeHtml(item.name)}</strong><span>約 ${escapeHtml(item.minutes)} 分鐘・${escapeHtml(item.distance_km)} km</span></div>`).join("");
+    const resolved = payload.resolved_origin && payload.resolved_origin !== payload.origin
+      ? `<small>社區名稱無法定位，已改用 ${escapeHtml(payload.resolved_origin)} 估算。</small>` : "";
+    results.innerHTML = `${resolved}${payload.estimates.map((item) => `<div><strong>${escapeHtml(item.name)}</strong><span>約 ${escapeHtml(item.minutes)} 分鐘・${escapeHtml(item.distance_km)} km</span></div>`).join("")}`;
     button.textContent = "重新顯示估算";
   } catch (error) {
     results.innerHTML = `<p>${escapeHtml(error.message)}；仍可使用下方 Google Maps 路線。</p>`;

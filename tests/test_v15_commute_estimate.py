@@ -41,6 +41,29 @@ def test_estimate_geocodes_then_uses_single_route_table_request(tmp_path):
     assert calls == []
 
 
+def test_estimate_falls_back_from_community_to_road(tmp_path):
+    calls = []
+
+    def fake_get(url):
+        calls.append(url)
+        if "nominatim" in url:
+            if "%E5%87%BD%E5%AE%87-%E6%B0%B4%E6%82%85" in url:
+                return []
+            return [{"lat": "22.70", "lon": "120.35"}]
+        return {"code": "Ok", "durations": [[1200]], "distances": [[15000]]}
+
+    result = estimate_commute(
+        "高雄市仁武區 函宇-水悅",
+        [{"name": "公司", "address": "高雄市燕巢區義大路1號"}],
+        cache_path=tmp_path / "commute.json",
+        origin_fallbacks=["高雄市仁武區八德北路"],
+        get_json=fake_get, sleep=lambda _: None,
+    )
+    assert result["resolved_origin"] == "高雄市仁武區八德北路"
+    assert result["estimates"][0]["minutes"] == 20
+    assert len([url for url in calls if "nominatim" in url]) == 3
+
+
 def test_v15_assets_and_launcher_are_active():
     with web_app_v15.app.test_request_context("/"):
         page = web_app_v15.index_v15()
@@ -50,4 +73,5 @@ def test_v15_assets_and_launcher_are_active():
     assert "估算通勤時間" in script
     assert "不含即時路況" in script
     assert "是否同意本次瀏覽期間使用" in script
+    assert "origin_fallbacks" in script
     assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
