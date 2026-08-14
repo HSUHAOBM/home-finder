@@ -87,6 +87,11 @@ def evaluate_listing(
             missing.append("建物型態不明，不能只憑標題認定透天／別墅")
         elif listing.property_type not in HOUSE_TYPES:
             failures.append(f"詳情型態是 {listing.property_type}，排除疑似混入的車墅廣告")
+        elif listing.looks_like_collective_housing:
+            failures.append(
+                f"樓層為 {listing.current_floor or '?'} / {listing.total_floors} 樓，"
+                "結構屬於集合住宅，不是透天／別墅"
+            )
         if config["require_parking"]:
             _require_parking(listing, False, failures, missing)
     else:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from difflib import SequenceMatcher
 
 from .user_models import Evaluation, HomeListing, ProfileName
 from .listing_identity import source_listing_ref
@@ -36,6 +37,33 @@ def duplicate_ref(listing: HomeListing) -> str:
     return source_listing_ref(listing.source, listing.external_id)
 
 
+def _title_fingerprint(value: str) -> str:
+    text = re.sub(r"獨家|專約|鄰近|近", "", value)
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", text.lower())
+
+
+def _looks_like_same_listing(left: HomeListing, right: HomeListing) -> bool:
+    if left.district != right.district or left.property_type != right.property_type:
+        return False
+    if abs(left.total_price_wan - right.total_price_wan) > 1:
+        return False
+    if left.rooms != right.rooms or left.baths != right.baths:
+        return False
+    if left.main_area_ping is None or right.main_area_ping is None:
+        return False
+    if abs(left.main_area_ping - right.main_area_ping) > 0.2:
+        return False
+    left_address = _normalize_location(left.address)
+    right_address = _normalize_location(right.address)
+    if left_address and right_address and left_address != right_address:
+        return False
+    left_title = _title_fingerprint(left.title)
+    right_title = _title_fingerprint(right.title)
+    return bool(left_title and right_title) and SequenceMatcher(
+        None, left_title, right_title
+    ).ratio() >= 0.82
+
+
 def find_duplicate_groups(listings: list[HomeListing]) -> dict[str, list[str]]:
     buckets: dict[tuple, list[HomeListing]] = defaultdict(list)
     for listing in listings:
@@ -51,6 +79,18 @@ def find_duplicate_groups(listings: list[HomeListing]) -> dict[str, list[str]]:
         for item in group:
             item_ref = duplicate_ref(item)
             result[item_ref] = [value for value in ids if value != item_ref]
+
+    for index, left in enumerate(listings):
+        for right in listings[index + 1:]:
+            if not _looks_like_same_listing(left, right):
+                continue
+            left_ref = duplicate_ref(left)
+            right_ref = duplicate_ref(right)
+            connected = {left_ref, right_ref}
+            connected.update(result.get(left_ref, []))
+            connected.update(result.get(right_ref, []))
+            for item_ref in connected:
+                result[item_ref] = sorted(connected - {item_ref})
     return result
 
 
@@ -121,6 +161,11 @@ def evaluate_listing(listing: HomeListing, profile: ProfileName) -> Evaluation:
             missing.append("建物型態不明，不能只憑標題認定透天／別墅")
         elif listing.property_type not in HOUSE_TYPES:
             failures.append(f"詳情型態是 {listing.property_type}，排除疑似混入的車墅廣告")
+        elif listing.looks_like_collective_housing:
+            failures.append(
+                f"樓層為 {listing.current_floor or '?'} / {listing.total_floors} 樓，"
+                "結構屬於集合住宅，不是透天／別墅"
+            )
         _require_parking(listing, flat_only=False, failures=failures, missing=missing)
     else:
         if listing.deal_kind != "預售屋":

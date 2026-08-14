@@ -58,6 +58,16 @@ def test_house_type_with_collective_housing_floor_is_normalized_to_condo() -> No
     assert "依集合住宅排除" in enriched.data_warnings[0]
 
 
+def test_house_evaluation_rejects_collective_housing_even_if_type_says_townhouse() -> None:
+    listing = home(
+        external_id="20706035", property_type="透天厝",
+        current_floor=19, total_floors=22,
+    )
+    result = evaluate_listing(listing, "透天別墅")
+    assert result.status == "rejected"
+    assert "結構屬於集合住宅" in result.hard_failures[0]
+
+
 def test_591_detail_reads_broker_company() -> None:
     listing = home(property_type="別墅", current_floor=3, total_floors=3)
     enriched = parse_detail_text(
@@ -66,6 +76,32 @@ def test_591_detail_reads_broker_company() -> None:
         "行業資質 經紀業名稱：聯旭地產開發有限公司 屋況特色",
     )
     assert enriched.broker_name == "聯旭地產開發有限公司"
+
+
+def test_591_detail_reads_type_when_label_characters_are_spaced() -> None:
+    listing = home(property_type="透天厝", current_floor=19, total_floors=22)
+    enriched = parse_detail_text(
+        listing,
+        "房屋資料 型 態 ： 電梯大樓 裝 潢 程 度 ： 精緻裝潢",
+    )
+    assert enriched.property_type == "電梯大樓"
+
+
+def test_duplicate_detection_merges_same_house_when_one_listing_lacks_address() -> None:
+    first = home(
+        external_id="20665232", title="🎉獨家~近橋科人車分道透天車墅",
+        district="燕巢區", property_type="別墅", total_price_wan=998,
+        main_area_ping=41.81, rooms=4, baths=3, address=None,
+    )
+    second = home(
+        external_id="20706777", title="獨家~鄰近橋科人車分道透天車墅",
+        district="燕巢區", property_type="別墅", total_price_wan=998,
+        main_area_ping=41.82, rooms=4, baths=3,
+        address="高雄市燕巢區寶頂一街5號",
+    )
+    duplicates = find_duplicate_groups([first, second])
+    assert duplicates["test:20665232"] == ["test:20706777"]
+    assert duplicates["test:20706777"] == ["test:20665232"]
 
 
 def test_detail_structured_parking_overrides_title() -> None:

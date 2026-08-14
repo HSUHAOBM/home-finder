@@ -57,7 +57,8 @@ goalRule = function goalRuleV4(profile) {
   if (!state.settings) return text;
   const search = state.settings.search;
   if (profile === "大樓公寓華廈" && state.settings.profiles[profile].require_high_floor) text += "・樓層 ≥ 2/3";
-  if (profile !== "預售屋") text += `・近 ${search.publish_days || "不限"} 天・${search.pages} 頁`;
+  if (profile === "透天別墅") text += `・不限刊登時間・${search.pages} 頁`;
+  else if (profile !== "預售屋") text += `・近 ${search.publish_days || "不限"} 天・${search.pages} 頁`;
   return text;
 };
 

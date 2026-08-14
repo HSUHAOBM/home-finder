@@ -93,7 +93,9 @@ renderNavigation = function renderNavigationV6() {
   if (state.settings) {
     const search = state.settings.search;
     document.querySelector('#search-mode option[value="daily"]').textContent =
-      `每日更新（近 ${search.publish_days || "不限"} 天／${search.pages} 頁）`;
+      state.activeProfile === "透天別墅"
+        ? `每日更新（不限刊登時間／${search.pages} 頁）`
+        : `每日更新（近 ${search.publish_days || "不限"} 天／${search.pages} 頁）`;
   }
   const insights = state.payload ? state.payload.profile_insights || {} : {};
   document.querySelectorAll(".goal-card").forEach((card) => {

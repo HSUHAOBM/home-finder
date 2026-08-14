@@ -18,7 +18,7 @@ from .user_models import HomeListing
 DETAIL_ID = re.compile(r"/detail/\d+/(?P<id>\d+)\.html")
 LAYOUT = re.compile(r"(?P<rooms>\d+(?:\.\d+)?)房(?P<living>\d+)廳(?P<baths>\d+)衛")
 FLOOR = re.compile(r"(?P<current>\d+)F/(?P<total>\d+)F", re.I)
-DETAIL_CACHE_PATH = "data/cache/591_details_v3.json"
+DETAIL_CACHE_PATH = "data/cache/591_details_v4.json"
 PRICE = re.compile(r"(?m)^\s*(?P<price>[\d,]+)\s*$\s*^\s*萬\s*$")
 DETAIL_PRICE = re.compile(
     r"(?m)^\s*(?P<price>[\d,]+)\s*(?:\r?\n\s*)?萬(?:元)?"
@@ -74,7 +74,9 @@ def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
 
 def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     compact = re.sub(r"\s+", " ", body)
-    type_match = re.search(r"型態\s*：\s*(.*?)\s*裝潢程度", compact)
+    type_match = re.search(
+        r"型\s*態\s*：\s*(.*?)\s*裝\s*潢\s*程\s*度", compact
+    )
     parking_match = re.search(r"車位\s*：\s*(.*?)\s*坪數說明", compact)
     main_match = re.search(r"主建物\s*：\s*([\d.]+)坪", compact)
     address_match = re.search(
@@ -87,21 +89,13 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     warnings = list(listing.data_warnings)
 
     property_type = type_match.group(1).strip() if type_match else listing.property_type
-    if property_type in {"透天厝", "別墅"} and listing.total_floors:
-        looks_like_collective_housing = (
-            listing.total_floors >= 6
-            or (
-                listing.current_floor is not None
-                and listing.current_floor != listing.total_floors
-            )
+    if property_type in {"透天厝", "別墅"} and listing.looks_like_collective_housing:
+        warnings.append(
+            f"型態標示 {property_type}，但樓層為 "
+            f"{listing.current_floor or '?'} / {listing.total_floors} 樓，"
+            "依集合住宅排除"
         )
-        if looks_like_collective_housing:
-            warnings.append(
-                f"型態標示 {property_type}，但樓層為 "
-                f"{listing.current_floor or '?'} / {listing.total_floors} 樓，"
-                "依集合住宅排除"
-            )
-            property_type = "電梯大樓"
+        property_type = "電梯大樓"
     parking_raw = parking_match.group(1).strip() if parking_match else None
     if parking_raw is None:
         parking_type = listing.parking_type

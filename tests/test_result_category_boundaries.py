@@ -73,6 +73,34 @@ def test_three_required_failures_remain_visible_in_rejected_group():
     assert [item["id"] for item in payload["groups"]["rejected"]] == ["three"]
 
 
+def test_collective_housing_mislabeled_as_house_stays_rejected():
+    record = rejected_record(
+        "20706035",
+        ["樓層為 19 / 22 樓，結構屬於集合住宅，不是透天／別墅"],
+    )
+    record["profile"] = "透天別墅"
+    payload = web_app_v6.build_dashboard_payload([record])
+
+    assert payload["groups"]["near_match"] == []
+    assert [item["id"] for item in payload["groups"]["rejected"]] == [
+        "20706035"
+    ]
+
+
+def test_explicit_condo_type_in_house_profile_stays_rejected():
+    record = rejected_record(
+        "condo-in-house",
+        ["詳情型態是 電梯大樓，排除疑似混入的車墅廣告"],
+    )
+    record["profile"] = "透天別墅"
+    payload = web_app_v6.build_dashboard_payload([record])
+
+    assert payload["groups"]["near_match"] == []
+    assert [item["id"] for item in payload["groups"]["rejected"]] == [
+        "condo-in-house"
+    ]
+
+
 def test_ui_names_category_and_lists_all_reasons():
     static_dir = Path(web_app_v6.__file__).with_name("static")
     dashboard_v3 = (static_dir / "dashboard_v3.js").read_text(encoding="utf-8")

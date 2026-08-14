@@ -194,7 +194,12 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
             else:
                 failures = record.get("hard_failures", [])
                 failure_counts.update(failures)
-                if 1 <= len(failures) <= 2:
+                structural_mismatch = any(
+                    "結構屬於集合住宅" in failure
+                    or "排除疑似混入的車墅廣告" in failure
+                    for failure in failures
+                )
+                if 1 <= len(failures) <= 2 and not structural_mismatch:
                     groups["near_match"].append(_card(record, "near_match"))
                 else:
                     groups["rejected"].append(_card(record, "rejected"))

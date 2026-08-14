@@ -51,8 +51,11 @@ function allProfileItemsV10() {
 }
 
 function matchesResultQueryV10(item, query) {
+  const variants = (item.variants || []).flatMap((variant) => [
+    variant.id, variant.title, variant.source, variant.origin_source,
+  ]);
   return [item.id, item.title, item.district, item.source, item.origin_source,
-    item.parking, item.broker_name]
+    item.parking, item.broker_name, ...variants]
     .filter(Boolean)
     .join(" ")
     .toLocaleLowerCase("zh-TW")

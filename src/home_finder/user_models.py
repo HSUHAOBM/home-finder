@@ -57,6 +57,15 @@ class HomeListing:
             return None
         return self.current_floor / self.total_floors
 
+    @property
+    def looks_like_collective_housing(self) -> bool:
+        if not self.total_floors:
+            return False
+        return self.total_floors >= 6 or (
+            self.current_floor is not None
+            and self.current_floor != self.total_floors
+        )
+
 
 @dataclass
 class Evaluation:
