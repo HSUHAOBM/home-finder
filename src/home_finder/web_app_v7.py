@@ -268,6 +268,8 @@ def _crawl_for_mode(
     if mode == "full":
         search["pages"] = 10
         search["publish_days"] = 0
+    elif mode.startswith("days_"):
+        search["publish_days"] = int(mode.removeprefix("days_"))
     elif profile == "透天別墅":
         # 透天量少且刊登週期長；每日搜尋也應保留仍有效的舊刊登。
         search["publish_days"] = 0
@@ -390,7 +392,11 @@ def _run_search(profile: str, mode: str) -> None:
     try:
         settings = load_settings()
         config = json.loads(base.CONFIG_PATH.read_text(encoding="utf-8"))
-        mode_label = "完整盤點" if mode == "full" else "每日更新"
+        mode_label = (
+            "完整盤點" if mode == "full"
+            else f"近 {mode.removeprefix('days_')} 天" if mode.startswith("days_")
+            else "每日更新"
+        )
         base._update_state(
             phase="crawling",
             active_profile=profile,

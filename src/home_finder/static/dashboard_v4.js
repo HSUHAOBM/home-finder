@@ -8,7 +8,7 @@ if (searchGrid) {
       <select id="publish-days" required>
         <option value="1">一天內</option><option value="3">三天內（預設）</option>
         <option value="5">五天內</option><option value="7">七天內</option>
-        <option value="15">十五天內</option><option value="30">三十天內</option>
+        <option value="10">十天內</option><option value="15">十五天內</option><option value="30">三十天內</option>
         <option value="0">不限</option>
       </select>
     </label>`);

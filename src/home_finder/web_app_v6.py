@@ -23,7 +23,7 @@ from .user_ranking_v6 import evaluate_all
 
 
 PROFILES = previous.PROFILES
-SEARCH_MODES = ("daily", "full")
+SEARCH_MODES = ("daily", "days_7", "days_10", "days_15", "full")
 
 
 def load_settings() -> dict:

@@ -106,6 +106,36 @@ def test_house_daily_scan_keeps_older_active_listings(monkeypatch):
     assert diagnostics["publish_days"] == 0
 
 
+@pytest.mark.parametrize(
+    ("mode", "expected_days"),
+    [("days_7", 7), ("days_10", 10), ("days_15", 15)],
+)
+def test_explicit_day_range_overrides_crawl_publish_days(
+    monkeypatch, mode, expected_days
+):
+    captured = {}
+
+    class FakeCrawler:
+        cache_expired = False
+        stats = {}
+
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def fetch(self):
+            return []
+
+    monkeypatch.setattr(web_app_v7, "TimedResaleCrawler", FakeCrawler)
+    settings = copy.deepcopy(web_app_v7.load_settings())
+
+    _, diagnostics = web_app_v7._crawl_for_mode(
+        "透天別墅", settings, {"collection_max_price": 1300}, mode,
+    )
+
+    assert captured["publish_days"] == expected_days
+    assert diagnostics["publish_days"] == expected_days
+
+
 def test_manual_url_import_merges_into_existing_results(monkeypatch, tmp_path):
     captured = {}
     timestamps = iter([100.0, 225.4])

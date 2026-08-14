@@ -44,7 +44,7 @@ def validate_settings(raw: dict) -> dict:
     search = raw.get("search", {})
     result["search"]["pages"] = previous._integer(search.get("pages"), "每種中古屋頁數", 3, 10)
     publish_days = previous._integer(search.get("publish_days"), "刊登時間", 0, 30)
-    if publish_days not in {0, 1, 3, 5, 7, 15, 30}:
+    if publish_days not in {0, 1, 3, 5, 7, 10, 15, 30}:
         raise ValueError("刊登時間只能選擇不限、1、3、5、7、15 或 30 天")
     if result["search"]["presale_details"] > 30:
         raise ValueError("預售屋詳情上限不可超過 30")

@@ -96,6 +96,10 @@ def test_v16_assets_launcher_and_api_validation():
     assert "data-house-type=\"別墅\"" in script
     assert "broker_watch_alert" in script
     assert "房仲刊登提醒" in script
+    search_mode_script = (root / "src/home_finder/static/dashboard_v6.js").read_text(encoding="utf-8")
+    assert 'value="days_7"' in search_mode_script
+    assert 'value="days_10"' in search_mode_script
+    assert 'value="days_15"' in search_mode_script
     assert "同路段參考" not in script
     assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
     response = web_app_v16.app.test_client().post("/api/favorites/real-price", json={"source": "591中古屋", "id": "missing", "months": 24})

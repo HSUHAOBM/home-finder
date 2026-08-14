@@ -98,6 +98,11 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
 
                 expect(page.locator("#active-goal-title")).to_have_text("大樓・華廈")
                 expect(page.locator("#updated-at")).to_contain_text("耗時 2 分 5 秒")
+                search_mode = page.locator("#search-mode")
+                expect(search_mode.locator("option")).to_have_count(5)
+                expect(search_mode).to_contain_text("近 7 天")
+                expect(search_mode).to_contain_text("近 10 天")
+                expect(search_mode).to_contain_text("近 15 天")
 
                 acceptable = page.locator('.tab[data-status="acceptable"]')
                 expect(acceptable).to_have_class(re.compile(r"\bactive\b"))
