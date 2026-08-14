@@ -46,6 +46,9 @@
 .closest-matches { margin: 16px 0; }
 .closest-matches h3 { margin: 0; color: var(--ink); }
 .closest-matches > p { margin: 3px 0 10px; color: var(--muted); font-size: .77rem; }
+.similarity-help { display: inline-block; margin-left: 5px; color: var(--green); }
+.similarity-help summary { cursor: pointer; font-weight: 850; }
+.similarity-help span { display: block; max-width: 720px; margin-top: 5px; color: var(--muted); line-height: 1.55; }
 .closest-matches > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .closest-match { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: #faf9f5; font-size: .8rem; }
 .closest-match.best { border-color: #b8944d; background: #fff9eb; box-shadow: 0 5px 16px rgba(128, 95, 32, .08); }
@@ -70,3 +73,9 @@
   .real-price-period button { flex: 0 0 auto; }
   .closest-matches > div { grid-template-columns: 1fr; }
 }
+.favorite-card-management { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.favorite-card-management .favorite-overview { margin: 0; }
+.favorite-card-tools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 7px; }
+.favorite-card-tools .favorite-note-compact,
+.favorite-card-tools .favorite-compare-toggle,
+.favorite-card-tools .real-price-entry { margin: 0; }

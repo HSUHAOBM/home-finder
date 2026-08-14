@@ -49,8 +49,27 @@ function realPriceButtonV16(item) {
 const previousListingCardV16 = listingCard;
 listingCard = function listingCardV16(item) {
   let html = previousListingCardV16(item);
-  if (item.is_favorite) html = html.replace("<h2>", `${realPriceButtonV16(item)}<h2>`);
-  return html;
+  if (!item.is_favorite) return html;
+  html = html.replace("<h2>", `${realPriceButtonV16(item)}<h2>`);
+  const template = document.createElement("template");
+  template.innerHTML = html.trim();
+  const card = template.content.querySelector(".listing-card");
+  const link = card?.querySelector(".listing-link");
+  if (!card || !link) return html;
+  const management = document.createElement("section");
+  management.className = "favorite-card-management";
+  const overview = card.querySelector(".favorite-overview");
+  const tools = document.createElement("div");
+  tools.className = "favorite-card-tools";
+  [".favorite-note-compact", ".favorite-compare-toggle", ".real-price-entry"]
+    .forEach((selector) => {
+      const element = card.querySelector(selector);
+      if (element) tools.appendChild(element);
+    });
+  if (overview) management.appendChild(overview);
+  management.appendChild(tools);
+  link.insertAdjacentElement("afterend", management);
+  return card.outerHTML;
 };
 
 function realPriceNumberV16(value, suffix = "") {
@@ -88,7 +107,7 @@ function renderRealPriceV16(box, payload) {
       <div><small>與中位數比較</small><strong>${comparison == null ? "待確認" : `${comparison >= 0 ? "+" : ""}${comparison} 萬／坪`}</strong></div>
     </div>` : `<div class="real-price-empty"><strong>最近期間查無相近成交</strong><span>可前往官方網站自行調整條件。</span></div>`;
   const closestHtml = (payload.closest_matches || []).length ? `<section class="closest-matches">
-    <h3>最相近成交</h3><p>相似度只用來協助排序，不代表已確認為同一戶。</p>
+    <h3>最相近成交</h3><p>相似度只用來協助排序，不代表已確認為同一戶。<details class="similarity-help"><summary>相似度怎麼算？</summary><span>社區／門牌 35%、坪數 20%、樓層 10%、總樓層 10%、屋齡 10%、房數 8%、車位 4%、建物型態 3%；缺少的欄位不列入分母。</span></details></p>
     <div>${payload.closest_matches.map((row, index) => `<article class="closest-match ${index === 0 ? "best" : ""}">
       <header><span>${index === 0 ? "最接近" : `第 ${index + 1} 名`}</span><strong>${escapeHtml(row.similarity_label)} ${row.similarity_score}%</strong></header>
       <b>${escapeHtml(row.date)}．${escapeHtml(row.address)}</b>

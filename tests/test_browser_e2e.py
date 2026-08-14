@@ -144,6 +144,12 @@ def test_dashboard_goal_and_category_flow_in_real_browser(tmp_path):
                 expect(page.locator(".favorite-overview")).to_be_visible()
                 expect(page.locator(".favorite-card .favorite-availability")).to_have_count(0)
                 expect(page.locator(".favorite-note-compact")).not_to_have_attribute("open", "")
+                management = page.locator(".favorite-card-management")
+                expect(management.locator(".favorite-overview")).to_have_count(1)
+                expect(management.locator(".favorite-card-tools")).to_contain_text("加入比較")
+                assert page.locator(".listing-link").evaluate(
+                    "(link) => link.compareDocumentPosition(link.nextElementSibling) & Node.DOCUMENT_POSITION_FOLLOWING"
+                )
                 favorite_filters = page.locator("#favorite-status-filters")
                 expect(favorite_filters).to_be_visible()
                 expect(favorite_filters.locator("button")).to_have_count(5)
