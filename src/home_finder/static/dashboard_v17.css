@@ -1,0 +1,36 @@
+.presale-map-button { margin-left: auto; border-color: #c88022; color: #8c5514; }
+.presale-map-button:hover { background: #fff8e9; }
+#presale-map-dialog { width: min(1180px, calc(100vw - 28px)); max-width: none; padding: 0; border: 0; border-radius: 18px; box-shadow: 0 24px 70px rgba(24, 34, 28, .28); }
+#presale-map-dialog::backdrop { background: rgba(20, 28, 24, .65); }
+#presale-map-content { padding: 24px; color: var(--ink); background: #fbfaf5; }
+.presale-map-header { display: flex; justify-content: space-between; gap: 20px; align-items: start; }
+.presale-map-header h2 { margin: 4px 0; font-family: "Noto Serif TC", "PMingLiU", serif; font-size: 1.75rem; }
+.presale-map-header p { margin: 0; color: var(--muted); }
+.presale-map-close { width: 38px; height: 38px; border: 0; border-radius: 50%; background: #ebe8df; font-size: 1.5rem; cursor: pointer; }
+.presale-map-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0 12px; }
+.presale-map-filters button { display: inline-flex; gap: 7px; align-items: center; padding: 8px 11px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--ink); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.presale-map-filters button.active { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.presale-map-filters i { width: 9px; height: 9px; border-radius: 50%; background: var(--stage-color); }
+#presale-map-visible { margin-left: auto; color: var(--muted); font-size: .82rem; }
+.presale-map-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; }
+.presale-map-layout aside { display: grid; align-content: start; gap: 6px; max-height: 610px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: white; }
+.presale-map-layout aside > strong { padding: 2px 4px 7px; }
+.presale-map-layout aside button { display: flex; justify-content: space-between; padding: 9px 10px; border: 0; border-radius: 8px; background: #f2f0e8; color: var(--ink); cursor: pointer; }
+.presale-map-layout aside button:hover { background: #e6f0e9; }
+#presale-map-canvas { height: 560px; border: 1px solid var(--line); border-radius: 13px; background: #e7ece7; overflow: hidden; }
+.presale-map-notice { margin: 7px 4px 0; color: var(--muted); font-size: .76rem; line-height: 1.55; }
+.presale-map-popup > span { display: inline-block; color: var(--stage-color); font-size: .72rem; font-weight: 900; }
+.presale-map-popup h3 { margin: 5px 0; font-size: 1rem; }
+.presale-map-popup p { margin: 0 0 6px; }
+.presale-map-popup ul { margin: 0; padding-left: 18px; }
+.presale-map-popup small { display: block; margin: 7px 0; color: #6f726e; }
+.presale-map-popup div { display: flex; gap: 12px; }
+.presale-map-popup a { color: #176747; font-weight: 850; }
+@media (max-width: 760px) {
+  #presale-map-content { padding: 18px 13px; }
+  .presale-map-layout { grid-template-columns: 1fr; }
+  .presale-map-layout aside { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 150px; }
+  .presale-map-layout aside > strong { grid-column: 1 / -1; }
+  #presale-map-canvas { height: 480px; }
+  #presale-map-visible { width: 100%; margin-left: 0; }
+}

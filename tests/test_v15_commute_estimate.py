@@ -93,4 +93,4 @@ def test_v15_removes_osrm_ui_and_api_but_keeps_launcher_compatible():
     assert "/static/dashboard_v15.css" not in page
     assert "/static/dashboard_v15.js" not in page
     assert web_app_v15.app.test_client().post("/api/commute-estimate", json={}).status_code == 404
-    assert "home_finder.web_app_v16" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
+    assert "home_finder.web_app_v17" in (root / "開啟找房介面.cmd").read_text(encoding="utf-8")
