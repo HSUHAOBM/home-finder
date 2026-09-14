@@ -94,7 +94,8 @@ def test_update_label_ui_shows_actual_change_details():
     static_dir = Path(__file__).parents[1] / "src" / "home_finder" / "static"
     script = (static_dir / "dashboard_v4.js").read_text(encoding="utf-8")
     stylesheet = (static_dir / "dashboard_v4.css").read_text(encoding="utf-8")
-    assert "這次實際變更" in script
+    assert "資料更新 ${changes.length} 項" in script
+    assert "查看差異" in script
     assert "舊版更新紀錄" in script
     assert "change_details" in script
     assert ".change-details" in stylesheet

@@ -97,3 +97,45 @@
 .house-type-filters button.active { border-color: var(--green); background: var(--green); color: white; }
 .broker-watch-alert { display: grid; gap: 3px; margin: 10px 0; padding: 10px 12px; border: 1px solid #d98e7e; border-left-width: 4px; border-radius: 10px; background: #fff1ed; color: var(--brick); font-size: .78rem; }
 .broker-watch-alert strong { font-size: .82rem; }
+.listing-availability { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 9px 0; padding: 8px 10px; border: 1px solid #dcc89f; border-radius: 10px; background: #fffaf0; color: var(--muted); font-size: .76rem; }
+.listing-availability strong { padding: 3px 7px; border-radius: 999px; }
+.listing-availability .status-available { background: var(--green-soft); color: var(--green); }
+.listing-availability .status-removed { background: var(--brick-soft); color: var(--brick); }
+.listing-availability .status-unknown { background: #eee9e1; color: #725f52; }
+.listing-availability small { margin-left: auto; }
+.availability-section-title { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding: 8px 2px 4px; color: var(--green); border-bottom: 1px solid var(--line); }
+.availability-section-title span { color: var(--muted); font-size: .78rem; }
+.availability-divider { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 18px 0 2px; padding: 13px 14px; border-top: 3px solid var(--brick); border-radius: 8px; background: #fff1ed; color: var(--brick); font-weight: 900; }
+.availability-divider button { padding: 6px 10px; border: 1px solid #c47768; border-radius: 999px; background: white; color: var(--brick); font: inherit; font-size: .75rem; font-weight: 850; cursor: pointer; }
+.category-clear-bar { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #ddc8a1; border-radius: 10px; background: #fffaf0; color: #725f52; font-size: .8rem; font-weight: 850; }
+.category-clear-bar button { padding: 6px 12px; border: 1px solid #b47a6d; border-radius: 999px; background: white; color: var(--brick); font: inherit; font-size: .76rem; font-weight: 900; cursor: pointer; }
+.category-clear-bar button:disabled { opacity: .5; cursor: wait; }
+.listing-card { position: relative; }
+.listing-card .card-top { margin-top: 8px; padding-right: 30px; }
+.listing-delete { position: absolute; z-index: 2; top: 17px; right: 17px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #8a918d; font: 500 1.35rem/1 system-ui; cursor: pointer; opacity: .58; }
+.listing-delete:hover { background: var(--brick-soft); color: var(--brick); opacity: 1; }
+.listing-delete:focus-visible { outline: 3px solid #e0aaa0; outline-offset: 2px; opacity: 1; }
+.availability-divider button:disabled, .listing-delete:disabled { opacity: .5; cursor: wait; }
+.card-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: auto; padding-top: 4px; }
+.card-actions .favorite-toggle { width: auto; min-width: 104px; min-height: 44px; margin: 0; padding: 8px 12px; }
+.card-actions .listing-link { min-height: 44px; margin: 0; padding: 8px 12px; align-items: center; }
+.listing-supplemental { display: grid; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.listing-status-notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: .76rem; }
+.listing-card .tracking-row { margin: 0; padding-bottom: 0; border-bottom: 0; }
+.listing-card .change-details { margin: 8px 0 10px; padding: 8px 10px; }
+.listing-card .broker-watch-alert { margin: 8px 0 10px; padding: 8px 10px; }
+.listing-card > h2 { margin: 0; padding-right: 30px; }
+
+@media (min-width: 801px) {
+  .shell { width: min(1240px, calc(100% - 32px)); padding-top: 34px; }
+  .hero { padding: 28px 32px; }
+  .hero h1 { font-size: clamp(2rem, 4vw, 3rem); }
+  .hero .criteria { margin-top: 19px; }
+}
+
+@media (max-width: 520px) {
+  .listing-delete { top: 13px; right: 13px; }
+  .card-actions { grid-template-columns: 1fr; }
+  .card-actions .favorite-toggle { width: 100%; }
+  .tracking-meta { flex-basis: 100%; margin-left: 0; }
+}

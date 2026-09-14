@@ -153,6 +153,54 @@ def test_sharp_full_scan_drop_preserves_existing_listings():
     assert reason == "完整盤點讀取量異常偏低（1/8）"
 
 
+def test_daily_search_marks_unseen_listings_in_same_profile_only():
+    old = listing("old", lifecycle_status="updated")
+    current = listing("current", lifecycle_status="seen")
+    other_profile = listing(
+        "house", search_profile="透天別墅", property_type="透天厝"
+    )
+
+    marked = web_app_v7._mark_unseen_daily_listings(
+        [old, current, other_profile], [listing("current")], "大樓公寓華廈"
+    )
+
+    assert old.lifecycle_status == "not_seen"
+    assert "網址尚未確認是否下架" in old.data_warnings[0]
+    assert current.lifecycle_status == "seen"
+    assert other_profile.lifecycle_status is None
+
+
+def test_daily_search_does_not_mark_anything_when_source_returned_nothing():
+    old = listing("old", lifecycle_status="updated")
+
+    marked = web_app_v7._mark_unseen_daily_listings(
+        [old], [], "大樓公寓華廈"
+    )
+
+    assert marked[0].lifecycle_status == "updated"
+
+
+def test_fetched_listing_refreshes_cached_url_status(tmp_path):
+    path = tmp_path / "url-availability.json"
+    path.write_text(
+        json.dumps({
+            "591中古屋:A": {
+                "url_availability_status": "removed",
+                "url_availability_reason": "網址回傳 HTTP 404",
+            }
+        }, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    web_app_v7._record_fetched_availability(
+        [listing("A")], path, checked_at="2026-09-09T03:00:00+08:00"
+    )
+
+    saved = json.loads(path.read_text(encoding="utf-8"))["591中古屋:A"]
+    assert saved["url_availability_status"] == "available"
+    assert saved["url_availability_reason"] == "本次爬蟲已找到"
+
+
 def test_v7_script_selects_first_non_empty_result_category():
     script = (
         Path(web_app_v7.__file__).with_name("static") / "dashboard_v7.js"
@@ -299,6 +347,18 @@ def test_ui_displays_successful_crawl_time():
     assert "successful_crawls_by_profile" in dashboard_v7
     assert "最近成功 ${successTime}" in dashboard_v7
 
+
+def test_ui_anchors_relative_591_update_text_and_marks_stale_cards():
+    static_dir = Path(web_app_v7.__file__).with_name("static")
+    dashboard_v4 = (static_dir / "dashboard_v4.js").read_text(encoding="utf-8")
+    dashboard_v7 = (static_dir / "dashboard_v7.js").read_text(encoding="utf-8")
+
+    assert "舊資料・未重新確認" in dashboard_v4
+    assert "本輪列表未收錄" in dashboard_v4
+    assert "抓取時，591 顯示" in dashboard_v4
+    assert "最後確認：" in dashboard_v4
+    assert "&& !isTrackingStale(item)" in dashboard_v7
+
 def test_status_polling_only_runs_while_search_is_active():
     script = (
         Path(web_app_v7.__file__).with_name("static") / "dashboard_v3.js"
@@ -349,6 +409,7 @@ def test_v7_script_supports_total_and_main_area_unit_price_sorting():
     assert 'data-sort-field="metric">推薦' not in script
     assert 'return "無車位"' in script
     assert 'return "非平面車位"' in script
+    assert '["near_match", "rejected"].includes(state.activeStatus)' in script
     assert "syncSortButtonsV7" in script
 
 

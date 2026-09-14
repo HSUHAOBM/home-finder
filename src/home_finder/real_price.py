@@ -328,15 +328,30 @@ def query_real_price(
     listing_area = _number(listing.get("total_area"))
     listing_rooms = _number(listing.get("rooms"))
     candidates = road_candidates
-    exact = [
+    community_matches = [
         item for item in candidates
-        if (community and community in _text(item["address"] + item["note"]))
-        or _number_matches(listing_address, item["address"])
+        if community and community in _text(item["address"] + item["note"])
     ]
-    selected = exact or candidates
-    match_level = "address" if exact else ("road" if candidates else "none")
+    address_matches = [
+        item for item in candidates
+        if _number_matches(listing_address, item["address"])
+    ]
+    selected = community_matches or address_matches or candidates
+    match_level = (
+        "community" if community_matches
+        else "address" if address_matches
+        else "road" if candidates
+        else "none"
+    )
     selected = [_rank_record(item, listing, current) for item in selected]
-    selected.sort(key=lambda item: (item["similarity_score"], item["date"]), reverse=True)
+    selected.sort(
+        key=lambda item: (
+            _number_matches(listing_address, item["address"]),
+            item["similarity_score"],
+            item["date"],
+        ),
+        reverse=True,
+    )
     listing_price = _number(listing.get("price"))
     listing_unit_price = round(listing_price / listing_area, 2) if listing_price and listing_area else None
     return {
@@ -344,14 +359,21 @@ def query_real_price(
         "district": listing.get("district"),
         "address": listing.get("address"),
         "road": road,
-        "comparison_scope": (
-            "依門牌、權狀坪數、樓層、總樓層、屋齡、房數與車位綜合排序"
-            if selected else "同路段"
-        ),
+        "comparison_scope": {
+            "community": "同社區優先，再依門牌、權狀坪數、樓層、總樓層、屋齡、房數與車位綜合排序",
+            "address": "依門牌、權狀坪數、樓層、總樓層、屋齡、房數與車位綜合排序",
+            "road": "同路段參考，依權狀坪數、樓層、屋齡、房數與車位綜合排序",
+            "none": "同路段",
+        }[match_level],
         "months": months,
         "since": since.isoformat(),
         "match_level": match_level,
-        "match_label": {"address": "門牌範圍吻合", "road": "同路段參考", "none": "查無相近成交"}[match_level],
+        "match_label": {
+            "community": "社區名稱吻合",
+            "address": "門牌範圍吻合",
+            "road": "同路段參考",
+            "none": "查無相近成交",
+        }[match_level],
         "summary": _summary(selected) if selected else None,
         "listing_unit_price": listing_unit_price,
         "transactions": selected[:30],

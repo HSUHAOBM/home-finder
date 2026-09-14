@@ -19,6 +19,9 @@ data/search_history.json
 data/settings_history.json
 data/favorites.json
 data/search_diagnostics.json
+data/crawl_audit.jsonl
+data/url_availability.json
+data/deleted_listings.json
 data/broker_watchlist.json
 data/listings*.json
 data/commute_settings.json

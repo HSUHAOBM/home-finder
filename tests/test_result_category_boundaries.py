@@ -42,7 +42,7 @@ def test_one_or_two_required_failures_are_only_in_barely_acceptable_group():
                 "two",
                 [
                     "總價 1200 萬，超過 1150 萬",
-                    "不是平面車位：5.09坪，機械式，已含售金內",
+                    "主建物坪數 12，低於最低 15",
                 ],
             ),
         ]
@@ -53,6 +53,24 @@ def test_one_or_two_required_failures_are_only_in_barely_acceptable_group():
         "two",
     ]
     assert payload["groups"]["rejected"] == []
+
+
+def test_explicitly_missing_or_non_flat_parking_is_always_rejected():
+    payload = web_app_v6.build_dashboard_payload(
+        [
+            rejected_record("none", ["詳情欄位顯示無汽車位"]),
+            rejected_record(
+                "mechanical",
+                ["不是平面車位：5.09坪，機械式，已含售金內"],
+            ),
+        ]
+    )
+
+    assert payload["groups"]["near_match"] == []
+    assert [item["id"] for item in payload["groups"]["rejected"]] == [
+        "none",
+        "mechanical",
+    ]
 
 
 def test_three_required_failures_remain_visible_in_rejected_group():
@@ -118,4 +136,4 @@ def test_ui_names_category_and_lists_all_reasons():
     assert 'option value="failures"' in dashboard_v7
     assert "failureCategoryV7" in dashboard_v7
     assert 'data-failure-category="${escapeHtml(value)}"' in dashboard_v7
-    assert 'state.activeStatus === "near_match" && state.nearFailureFilter' in dashboard_v7
+    assert '["near_match", "rejected"].includes(state.activeStatus)' in dashboard_v7

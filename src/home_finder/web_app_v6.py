@@ -199,7 +199,16 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
                     or "排除疑似混入的車墅廣告" in failure
                     for failure in failures
                 )
-                if 1 <= len(failures) <= 2 and not structural_mismatch:
+                parking_dealbreaker = any(
+                    "詳情欄位顯示無汽車位" in failure
+                    or "不是平面車位" in failure
+                    for failure in failures
+                )
+                if (
+                    1 <= len(failures) <= 2
+                    and not structural_mismatch
+                    and not parking_dealbreaker
+                ):
                     groups["near_match"].append(_card(record, "near_match"))
                 else:
                     groups["rejected"].append(_card(record, "rejected"))

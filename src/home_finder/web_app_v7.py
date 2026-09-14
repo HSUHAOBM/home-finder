@@ -14,12 +14,15 @@ from flask import jsonify, render_template, request
 from . import web_app as base
 from . import web_app_v3 as editable_settings
 from . import web_app_v6 as previous
+from .crawl_audit import append_crawl_audit
+from .deleted_listings import reconcile_relisted
 from .crawler_591_multi import MultiPage591ResaleCrawler
 from .crawler_591_presale import SECTION_IDS as LEGACY_SECTION_IDS
 from .crawler_591_presale_multi import MultiDistrict591PresaleCrawler
 from .kaohsiung_districts import ALL_DISTRICTS, DISTRICT_GROUPS, SECTION_IDS
 from .listing_history import annotate_history
 from .listing_identity import listing_history_key
+from .listing_identity import source_listing_ref
 from .broker_watchlist import broker_alert, load_watchlist, update_watchlist
 from .result_store import (
     RANKING_VERSION,
@@ -38,8 +41,11 @@ from .user_ranking_v6 import evaluate_all
 
 CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
 DIAGNOSTICS_PATH = base.BASE_DIR / "data" / "search_diagnostics.json"
+CRAWL_AUDIT_PATH = base.BASE_DIR / "data" / "crawl_audit.jsonl"
 HISTORY_PATH = base.BASE_DIR / "data" / "listing_history.json"
 BROKER_WATCHLIST_PATH = base.BASE_DIR / "data" / "broker_watchlist.json"
+DELETED_LISTINGS_PATH = base.BASE_DIR / "data" / "deleted_listings.json"
+URL_AVAILABILITY_PATH = base.BASE_DIR / "data" / "url_availability.json"
 DAY_RANGE_PAGES = {"days_7": 5, "days_10": 7, "days_15": 15}
 SEARCH_HISTORY_PATH = base.BASE_DIR / "data" / "search_history.json"
 SETTINGS_HISTORY_PATH = base.BASE_DIR / "data" / "settings_history.json"
@@ -389,6 +395,49 @@ def _merge_full_scan_safely(
     return listings, archived, None
 
 
+def _mark_unseen_daily_listings(
+    existing: list[HomeListing],
+    fetched: list[HomeListing],
+    profile: str,
+) -> list[HomeListing]:
+    """Flag retained listings that this profile's successful sources did not return."""
+    fetched_keys = {(item.source, item.external_id) for item in fetched}
+    successful_sources = {item.source for item in fetched}
+    if not successful_sources:
+        return existing
+
+    for item in existing:
+        key = (item.source, item.external_id)
+        if (
+            item.search_profile == profile
+            and item.source in successful_sources
+            and key not in fetched_keys
+        ):
+            item.lifecycle_status = "not_seen"
+            warning = "本次搜尋未再次找到；網址尚未確認是否下架"
+            if warning not in item.data_warnings:
+                item.data_warnings.append(warning)
+    return existing
+
+
+def _record_fetched_availability(
+    listings: list[HomeListing],
+    path: Path,
+    *,
+    checked_at: str | None,
+) -> None:
+    cached = _load_json(path)
+    for item in listings:
+        if item.lifecycle_status == "possibly_removed":
+            continue
+        cached[source_listing_ref(item.source, item.external_id)] = {
+            "url_availability_status": "available",
+            "url_availability_reason": "本次爬蟲已找到",
+            "url_availability_checked_at": checked_at or base._iso_now(),
+        }
+    _write_json(path, cached)
+
+
 def _run_search(profile: str, mode: str) -> None:
     started = time.time()
     try:
@@ -407,6 +456,12 @@ def _run_search(profile: str, mode: str) -> None:
         )
         fetched, diagnostics = _crawl_for_mode(profile, settings, config["source"], mode)
         fetched = annotate_history(fetched, path=HISTORY_PATH)
+        fetched = reconcile_relisted(fetched, DELETED_LISTINGS_PATH)
+        _record_fetched_availability(
+            fetched,
+            URL_AVAILABILITY_PATH,
+            checked_at=diagnostics.get("finished_at"),
+        )
         existing = previous.previous._load_existing_listings()
         archived = 0
         archive_skip_reason: str | None = None
@@ -415,6 +470,7 @@ def _run_search(profile: str, mode: str) -> None:
                 existing, fetched, profile, diagnostics
             )
         else:
+            existing = _mark_unseen_daily_listings(existing, fetched, profile)
             listings = previous.merge_search_results(existing, fetched, profile, mode)
 
         update_watchlist(listings, BROKER_WATCHLIST_PATH)
@@ -422,6 +478,14 @@ def _run_search(profile: str, mode: str) -> None:
         base._update_state(phase="ranking", message="正在整理有效房源與資料完整度…")
         records = [item.to_dict() for item in evaluate_all(listings, settings)]
         previous._write_results(records)
+        append_crawl_audit(
+            CRAWL_AUDIT_PATH,
+            fetched,
+            profile=profile,
+            mode=mode,
+            saved_to=str(base.RESULTS_PATH),
+            crawled_at=diagnostics.get("finished_at"),
+        )
         diagnostics["archived_after_two_misses"] = archived
         diagnostics["archiving_skipped"] = archive_skip_reason is not None
         if archive_skip_reason:

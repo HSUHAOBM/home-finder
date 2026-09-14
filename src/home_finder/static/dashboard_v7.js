@@ -225,7 +225,7 @@ function failureCategoriesV7(item) {
 
 function renderNearFailureFiltersV7(items) {
   const box = document.querySelector("#near-failure-filters");
-  box.hidden = state.activeStatus !== "near_match";
+  box.hidden = !["near_match", "rejected"].includes(state.activeStatus);
   if (box.hidden) return;
   const counts = new Map();
   items.forEach((item) => failureCategoriesV7(item).forEach((category) => counts.set(category, (counts.get(category) || 0) + 1)));
@@ -274,16 +274,30 @@ renderResults = function renderResultsV7() {
   const onlyNew = document.querySelector("#only-new").checked;
   let availableItems = profileItems(state.activeProfile, state.activeStatus);
   if (district) availableItems = availableItems.filter((item) => item.district === district);
-  if (onlyNew) availableItems = availableItems.filter((item) => ["new", "updated"].includes(item.lifecycle_status));
+  if (onlyNew) availableItems = availableItems.filter((item) => ["new", "updated"].includes(item.lifecycle_status) && !isTrackingStale(item));
   renderNearFailureFiltersV7(availableItems);
-  let items = state.activeStatus === "near_match" && state.nearFailureFilter
+  let items = ["near_match", "rejected"].includes(state.activeStatus) && state.nearFailureFilter
     ? availableItems.filter((item) => failureCategoriesV7(item).includes(state.nearFailureFilter))
     : availableItems;
   items = sortItemsV7(items);
   document.querySelector("#visible-result-count").textContent = `顯示 ${items.length} 組`;
-  document.querySelector("#results").innerHTML = items.length
-    ? items.map(listingCard).join("")
-    : emptyState("目前沒有房源", "請切換分類、行政區或取消「只看本次新增」。");
+  if (!items.length) {
+    document.querySelector("#results").innerHTML = emptyState("目前沒有房源", "請切換分類、行政區或取消「只看本次新增」。");
+    return;
+  }
+  const activeItems = items.filter((item) => listingAvailabilityState(item) !== "removed");
+  const removedItems = items.filter((item) => listingAvailabilityState(item) === "removed");
+  const categoryItems = profileItems(state.activeProfile, state.activeStatus);
+  const categoryClearHtml = state.activeStatus === "near_match"
+    ? `<div class="category-clear-bar"><span>差強人意共 ${categoryItems.length} 筆</span><button type="button" class="clear-current-category">全部清除</button></div>`
+    : "";
+  const activeHtml = activeItems.length
+    ? `<div class="availability-section-title"><strong>刊登中／尚未確認</strong><span>${activeItems.length} 筆</span></div>${activeItems.map(listingCard).join("")}`
+    : "";
+  const removedHtml = removedItems.length
+    ? `<div class="availability-divider"><span>以下為已下架房源・${removedItems.length} 筆</span><button type="button" class="clear-removed-page">一鍵清除此頁已下架</button></div>${removedItems.map(listingCard).join("")}`
+    : "";
+  document.querySelector("#results").innerHTML = categoryClearHtml + activeHtml + removedHtml;
 };
 
 const previousRenderInsightV7 = renderInsight;

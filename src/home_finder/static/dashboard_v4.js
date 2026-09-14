@@ -72,9 +72,24 @@ goalDescription = function goalDescriptionV4(profile) {
   return text;
 };
 
+function isTrackingStale(item) {
+  if (!item.last_seen_at || !state.payload?.updated_at) return false;
+  const lastSeen = Date.parse(item.last_seen_at);
+  const reportUpdated = Date.parse(state.payload.updated_at);
+  return Number.isFinite(lastSeen) && Number.isFinite(reportUpdated)
+    && reportUpdated - lastSeen > 5 * 60 * 1000;
+}
+
 function lifecycleLabel(item) {
+  if (item.lifecycle_status === "relisted") return "重新上架";
+  if (item.lifecycle_status === "not_seen") return "本輪列表未收錄";
+  if (isTrackingStale(item)) return "舊資料・未重新確認";
   const labels = { new: "本次新發現", updated: "資料有更新", seen: "曾看過・本次仍在", possibly_removed: "詳情可能已下架" };
   return labels[item.lifecycle_status] || "尚未建立追蹤";
+}
+
+function listingAvailabilityState(item) {
+  return item.url_availability_status || item.availability_status || "pending";
 }
 
 function dateText(value) {
@@ -89,19 +104,28 @@ function listingChangesV4(item) {
       ? '<div class="change-details unavailable">這是舊版更新紀錄，當時尚未保存欄位差異；下次搜尋後會開始列出實際變更。</div>'
       : "";
   }
-  return `<div class="change-details">
-    <strong>這次實際變更 ${changes.length} 項</strong>
+  return `<details class="change-details">
+    <summary><strong>資料更新 ${changes.length} 項</strong><span>查看差異</span></summary>
     <ul>${changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
-  </div>`;
+  </details>`;
+}
+
+function listingUpdatedText(item) {
+  if (!item.listing_updated_text) return "591 未提供更新文字";
+  const capturedAt = dateText(item.last_seen_at);
+  return `${capturedAt} 抓取時，591 顯示「${item.listing_updated_text}」`;
 }
 
 const previousListingCard = listingCard;
 listingCard = function listingCardV4(item) {
   const html = previousListingCard(item);
   const tracking = `<div class="tracking-row">
-    <span class="lifecycle ${escapeHtml(item.lifecycle_status || "unknown")}">${escapeHtml(lifecycleLabel(item))}</span>
-    <span>${escapeHtml(item.listing_updated_text || "591 未提供更新文字")}</span>
-    <span>首次發現：${escapeHtml(dateText(item.first_seen_at))}</span>
+    <span class="lifecycle ${escapeHtml(isTrackingStale(item) ? "stale" : (item.lifecycle_status || "unknown"))}">${escapeHtml(lifecycleLabel(item))}</span>
+    <span class="tracking-confirmed">最後確認：${escapeHtml(dateText(item.last_seen_at))}</span>
+    <details class="tracking-meta"><summary>追蹤資訊</summary><div>
+      <span>首次發現：${escapeHtml(dateText(item.first_seen_at))}</span>
+      <span>${escapeHtml(listingUpdatedText(item))}</span>
+    </div></details>
   </div>`;
   return html.replace("<h2>", `${tracking}${listingChangesV4(item)}<h2>`);
 };

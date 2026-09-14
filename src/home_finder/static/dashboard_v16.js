@@ -46,35 +46,83 @@ function realPriceButtonV16(item) {
   </div>`;
 }
 
+function listingAvailabilityV16(item) {
+  const labels = { available: "刊登中", removed: "已下架", unknown: "查核失敗" };
+  const status = listingAvailabilityState(item);
+  const checked = status !== "pending";
+  if (!checked) return "";
+  const result = `<strong class="status-${escapeHtml(status)}">${escapeHtml(labels[status] || "查核失敗")}</strong><span>${escapeHtml(item.url_availability_reason || item.availability_reason || "")}</span><small>${escapeHtml(dateText(item.url_availability_checked_at || item.availability_checked_at))}</small>`;
+  return `<div class="listing-availability" data-source="${escapeHtml(item.source || "591")}" data-listing-id="${escapeHtml(item.id)}">
+    ${result}
+  </div>`;
+}
+
+function listingDeleteButtonV16(item) {
+  return `<button type="button" class="listing-delete" data-source="${escapeHtml(item.source || "591")}" data-listing-id="${escapeHtml(item.id)}" data-availability="${escapeHtml(listingAvailabilityState(item))}" aria-label="刪除這張房源卡" title="刪除這張房源卡">×</button>`;
+}
+
 const previousListingCardV16 = listingCard;
 listingCard = function listingCardV16(item) {
   let html = previousListingCardV16(item);
+  const showFavoriteTools = state.activeStatus === "favorites";
+  const availability = showFavoriteTools ? "" : listingAvailabilityV16(item);
+  if (availability) html = html.replace("<h2>", `${availability}<h2>`);
   if (item.broker_watch_alert) {
     const alert = item.broker_watch_alert;
     const count = Number(alert.incident_count || 0);
     const warning = `<aside class="broker-watch-alert"><strong>房仲刊登提醒</strong><span>${escapeHtml(alert.broker_name)} 過去有 ${count} 筆建物型態與樓層資料矛盾，請逐項查證。</span></aside>`;
     html = html.replace("<h2>", `${warning}<h2>`);
   }
-  if (!item.is_favorite) return html;
-  html = html.replace("<h2>", `${realPriceButtonV16(item)}<h2>`);
+  if (item.is_favorite && showFavoriteTools) html = html.replace("<h2>", `${realPriceButtonV16(item)}<h2>`);
   const template = document.createElement("template");
   template.innerHTML = html.trim();
   const card = template.content.querySelector(".listing-card");
   const link = card?.querySelector(".listing-link");
   if (!card || !link) return html;
-  const management = document.createElement("section");
-  management.className = "favorite-card-management";
-  const overview = card.querySelector(".favorite-overview");
-  const tools = document.createElement("div");
-  tools.className = "favorite-card-tools";
-  [".favorite-note-compact", ".favorite-compare-toggle", ".real-price-entry"]
+  card.querySelector(".card-top")?.insertAdjacentHTML("beforeend", listingDeleteButtonV16(item));
+  const title = card.querySelector(":scope > h2");
+  const cardTop = card.querySelector(":scope > .card-top");
+  if (title && cardTop) card.insertBefore(title, cardTop);
+  const actions = document.createElement("section");
+  actions.className = "card-actions";
+  const favoriteToggle = card.querySelector(":scope > .favorite-toggle");
+  link.insertAdjacentElement("beforebegin", actions);
+  if (favoriteToggle) actions.appendChild(favoriteToggle);
+  actions.appendChild(link);
+  if (item.is_favorite && showFavoriteTools) {
+    const management = document.createElement("section");
+    management.className = "favorite-card-management";
+    const overview = card.querySelector(".favorite-overview");
+    const tools = document.createElement("div");
+    tools.className = "favorite-card-tools";
+    [".favorite-note-compact", ".favorite-compare-toggle", ".real-price-entry"]
+      .forEach((selector) => {
+        const element = card.querySelector(selector);
+        if (element) tools.appendChild(element);
+      });
+    if (overview) management.appendChild(overview);
+    management.appendChild(tools);
+    actions.insertAdjacentElement("afterend", management);
+  } else {
+    [".favorite-overview", ".favorite-note-compact", ".favorite-compare-toggle", ".real-price-entry"]
+      .forEach((selector) => card.querySelector(selector)?.remove());
+  }
+  const supplemental = document.createElement("footer");
+  supplemental.className = "listing-supplemental";
+  const statusNotes = document.createElement("ul");
+  statusNotes.className = "listing-status-notes";
+  card.querySelectorAll(":scope > .notes > li").forEach((note) => {
+    if (note.textContent.includes("本次搜尋未再次找到")) statusNotes.appendChild(note);
+  });
+  if (statusNotes.childElementCount) supplemental.appendChild(statusNotes);
+  const notes = card.querySelector(":scope > .notes");
+  if (notes && !notes.childElementCount) notes.remove();
+  [".broker-watch-alert", ".tracking-row", ".change-details", ".listing-availability"]
     .forEach((selector) => {
       const element = card.querySelector(selector);
-      if (element) tools.appendChild(element);
+      if (element) supplemental.appendChild(element);
     });
-  if (overview) management.appendChild(overview);
-  management.appendChild(tools);
-  link.insertAdjacentElement("afterend", management);
+  if (supplemental.childElementCount) card.appendChild(supplemental);
   return card.outerHTML;
 };
 
@@ -176,6 +224,48 @@ async function loadRealPriceV16(box, months) {
 }
 
 document.querySelector("#results").addEventListener("click", (event) => {
+  const clearRemoved = event.target.closest(".clear-removed-page");
+  const clearCategory = event.target.closest(".clear-current-category");
+  const deleteButton = event.target.closest(".listing-delete");
+  if (clearRemoved || clearCategory || deleteButton) {
+    const buttons = clearRemoved
+      ? [...document.querySelectorAll("#results .listing-delete[data-availability='removed']")]
+      : (deleteButton ? [deleteButton] : []);
+    const categoryCards = clearCategory ? profileItems(state.activeProfile, state.activeStatus) : [];
+    const items = clearCategory
+      ? categoryCards.map((item) => ({ source: item.source || "591", id: item.id }))
+      : buttons.map((button) => ({ source: button.dataset.source, id: button.dataset.listingId }));
+    if (!items.length) return;
+    const message = clearCategory
+      ? `確定清除「差強人意」全部 ${items.length} 筆房源？完全符合、可接受、待確認、已排除與收藏都不會受影響。`
+      : (clearRemoved
+        ? `確定清除此頁 ${items.length} 筆已下架房源？其他分類不會受影響。`
+        : "確定刪除這張房源卡？若未來重新抓到，會標示為重新上架。");
+    if (!window.confirm(message)) return;
+    if (clearCategory) clearCategory.disabled = true;
+    buttons.forEach((button) => { button.disabled = true; });
+    fetch("/api/listings/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items,
+        profile: state.activeProfile,
+        category: state.activeStatus,
+        removed_only: Boolean(clearRemoved),
+        clear_category: Boolean(clearCategory),
+      }),
+    }).then((response) => readJsonResponse(response, "刪除房源失敗"))
+      .then((result) => {
+        state.payload = result.results;
+        renderNavigation();
+        renderResults();
+        document.querySelector("#status-message").textContent = `已刪除 ${result.deleted} 筆房源；歷史紀錄已保留。`;
+      }).catch((error) => {
+        document.querySelector("#status-message").textContent = `刪除房源失敗：${error.message}`;
+        if (clearCategory) clearCategory.disabled = false;
+        buttons.forEach((button) => { button.disabled = false; });
+      });
+    return;
+  }
   const button = event.target.closest(".real-price-open");
   if (!button) return;
   const item = (state.payload?.favorites || []).find((favorite) =>
