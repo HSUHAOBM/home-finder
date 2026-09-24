@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 
 from home_finder.crawler_591_browser import (
-    DETAIL_CACHE_PATH,
     Browser591Crawler,
     parse_detail_text,
 )
@@ -36,21 +35,11 @@ def listing() -> HomeListing:
 
 def test_description_mechanical_parking_overrides_structured_flat_parking():
     body = """
-def test_resale_cache_path_is_versioned_after_parser_change():
-    crawler = Browser591Crawler(
-        districts=["大社區"],
-        max_details=1,
-        delay_seconds=2,
-        sleep=lambda _seconds: None,
-    )
-
-    assert str(crawler.cache_path) == DETAIL_CACHE_PATH
-
-
     型態：電梯大樓 裝潢程度：尚未裝潢
     車位：平面式，已含售金內 坪數說明
     主建物：24.6坪
     屋況特色：車道分流，B1機械上層車位
+    買房知識
     """
 
     parsed = parse_detail_text(listing(), body)
@@ -66,3 +55,34 @@ def test_resale_cache_path_is_versioned_after_parser_change():
     )
     assert result.status == "rejected"
     assert result.hard_failures == ["不是平面車位：B1機械上層車位"]
+
+
+def test_recommendations_do_not_override_structured_flat_parking_or_garden():
+    body = """
+    型態：電梯大樓 裝潢程度：尚未裝潢
+    車位：6.522坪，平面式，已含售金內 坪數說明
+    主建物：24.6坪
+    屋況特色：格局方正，前後大陽台採光佳
+    買房知識
+    附近搶手物件推薦
+    兩房機械車位
+    王子大花園
+    """
+
+    parsed = parse_detail_text(listing(), body)
+
+    assert parsed.parking_type == "6.522坪，平面式，已含售金內"
+    assert parsed.has_parking is True
+    assert parsed.has_garden is None
+    assert parsed.data_warnings == []
+
+
+def test_resale_cache_path_is_versioned_after_parser_change():
+    crawler = Browser591Crawler(
+        districts=["大社區"],
+        max_details=1,
+        delay_seconds=2,
+        sleep=lambda _seconds: None,
+    )
+
+    assert crawler.cache_path.as_posix() == "data/cache/591_details_v5.json"

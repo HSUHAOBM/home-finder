@@ -18,7 +18,7 @@ from .user_models import HomeListing
 DETAIL_ID = re.compile(r"/detail/\d+/(?P<id>\d+)\.html")
 LAYOUT = re.compile(r"(?P<rooms>\d+(?:\.\d+)?)房(?P<living>\d+)廳(?P<baths>\d+)衛")
 FLOOR = re.compile(r"(?P<current>\d+)F/(?P<total>\d+)F", re.I)
-DETAIL_CACHE_PATH = "data/cache/591_details_v4.json"
+DETAIL_CACHE_PATH = "data/cache/591_details_v5.json"
 PRICE = re.compile(r"(?m)^\s*(?P<price>[\d,]+)\s*$\s*^\s*萬\s*$")
 DETAIL_PRICE = re.compile(
     r"(?m)^\s*(?P<price>[\d,]+)\s*(?:\r?\n\s*)?萬(?:元)?"
@@ -29,6 +29,16 @@ DETAIL_PRICE = re.compile(
 def _number(text: str, prefix: str, suffix: str) -> float | None:
     match = re.search(re.escape(prefix) + r"\s*([\d.]+)" + re.escape(suffix), text)
     return float(match.group(1)) if match else None
+
+
+def _feature_text(compact: str) -> str:
+    """Return only the listing's feature copy, excluding recommendation widgets."""
+    match = re.search(
+        r"屋況特色\s*[：:]?\s*(.*?)\s*(?:買房知識|房屋圖片\s*預約賞屋|社區資訊|地圖\s*&\s*街景)",
+        compact,
+        re.I,
+    )
+    return match.group(1).strip() if match else ""
 
 
 def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
@@ -74,6 +84,7 @@ def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
 
 def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     compact = re.sub(r"\s+", " ", body)
+    feature_text = _feature_text(compact)
     type_match = re.search(
         r"型\s*態\s*：\s*(.*?)\s*裝\s*潢\s*程\s*度", compact
     )
@@ -112,7 +123,7 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     else:
         parking_type = parking_raw
     mechanical_description = re.search(
-        r"(?:B\d+\s*)?機械(?:上層|下層|式)?(?:車位)?", compact, re.I
+        r"(?:B\d+\s*)?機械(?:上層|下層|式)?(?:車位)?", feature_text, re.I
     )
     if mechanical_description:
         described_parking = mechanical_description.group(0)
@@ -123,8 +134,6 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         parking_type = described_parking
         has_parking = True
 
-        has_parking = True
-
     if "平車" in listing.title and has_parking is False:
         warnings.append("標題宣稱平車，但詳情結構化欄位顯示無車位")
     if "平車" in listing.title and parking_type and "平面" not in parking_type and parking_type != "無":
@@ -133,7 +142,9 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         warnings.append(f"標題像透天／車墅，但詳情型態為 {property_type or '不明'}")
 
     garden_words = ("花園", "庭院", "前院", "後院")
-    has_garden = True if any(word in body for word in garden_words) else listing.has_garden
+    has_garden = (
+        True if any(word in feature_text for word in garden_words) else listing.has_garden
+    )
     return replace(
         listing,
         property_type=property_type,
