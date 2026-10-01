@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from typing import Any, Callable
 
+from flask import render_template, request
+
 from . import web_app_v16 as previous
 from . import web_app_v7 as crawl_app
 from .crawler_leju_presale import BrowserLejuPresaleCrawler, SOURCE_NAME
@@ -89,6 +91,15 @@ def index_v17():
         '<script src="/static/dashboard_v17.js" defer></script>'
     )
     return html.replace("</head>", assets + "</head>")
+
+
+@app.get("/property-map")
+def property_map_v17():
+    return render_template(
+        "property_map.html",
+        initial_profile=request.args.get("profile", "大樓公寓華廈"),
+        initial_status=request.args.get("status", "exact_match"),
+    )
 
 
 def activate() -> None:

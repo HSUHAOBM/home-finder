@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>房源分類地圖</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="/static/property_map.css">
+  <script>window.INITIAL_MAP_PROFILE = {{ initial_profile|tojson }};</script>
+  <script>window.INITIAL_MAP_STATUS = {{ initial_status|tojson }};</script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+  <script src="/static/property_map.js" defer></script>
+</head>
+<body>
+  <main class="map-shell">
+    <header class="map-header">
+      <div>
+        <span>PROPERTY MAP</span>
+        <div class="map-title-line">
+          <h1 id="map-title">房源分類地圖</h1>
+          <p>— 一次看完整分布，再逐筆點選比較。圖釘是行政區內約略位置，不代表實際棟別。</p>
+        </div>
+      </div>
+      <a href="/" class="back-link">回房源列表</a>
+    </header>
+    <section class="map-controls" aria-label="房源分類與地圖篩選">
+      <nav id="map-status-tabs" class="map-status-tabs" aria-label="房源分類">
+        <button type="button" data-status="exact_match">完全符合 <span>0</span></button>
+        <button type="button" data-status="acceptable">可接受 <span>0</span></button>
+        <button type="button" data-status="needs_verification">待確認 <span>0</span></button>
+        <button type="button" data-status="near_match">差強人意 <span>0</span></button>
+        <button type="button" data-status="rejected">已排除 <span>0</span></button>
+        <button type="button" data-status="favorites">已收藏 <span>0</span></button>
+      </nav>
+      <div class="map-toolbar" aria-label="地圖篩選">
+        <label>行政區<select id="map-district"><option value="">全部行政區</option></select></label>
+        <label>排序<select id="map-sort">
+          <option value="metric-desc">符合度高到低</option>
+          <option value="failures-asc">不符合項目少到多</option>
+          <option value="price-asc">總價低到高</option>
+          <option value="price-desc">總價高到低</option>
+          <option value="total-unit-asc">權狀單價低到高</option>
+          <option value="main-unit-asc">室內單價低到高</option>
+          <option value="age-asc">屋齡新到舊</option>
+          <option value="newest-desc">最新發現</option>
+        </select></label>
+        <label id="map-failure-wrap" hidden>不符合項目<select id="map-failure"><option value="">全部原因</option></select></label>
+        <label class="map-search"><span>搜尋</span><input id="map-search" type="search" placeholder="標題、社區或來源"></label>
+        <strong id="map-count">載入中…</strong>
+      </div>
+    </section>
+    <section class="map-workspace">
+      <aside id="map-list" class="map-list" aria-label="房源清單"></aside>
+      <div id="property-map" class="map-canvas" aria-label="房源地圖"></div>
+      <aside id="map-detail" class="map-detail" aria-live="polite">
+        <div class="empty-detail"><b>點選一個圖釘</b><span>這裡會顯示房源完整摘要。</span></div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

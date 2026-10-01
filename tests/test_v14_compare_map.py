@@ -37,6 +37,15 @@ def test_v14_assets_launcher_and_features():
     assert "/static/dashboard_v14.css" in page
     assert "favorite-compare-open" in script
     assert "favorite-map-button" in script
+    assert "activeMapItemsV14" in script
+    assert "房源地圖" in script
+    assert "&status=" in script
+    assert "mapButton.hidden = false" in script
+    assert "listing-community" in script
+    assert "state.mapWorkspaceItems" in script
+    assert "overview-map-canvas" in script
+    assert "initializeOverviewMapV14" in script
+    assert "MAP_STATUS_META_V14" in script
     assert "travelmode" in script
     assert "一次最多比較 4 間收藏" in script
     assert "if (/\\d+(?:之\\d+)?號/.test(locatedAddress)) return locatedAddress" in script
