@@ -153,6 +153,31 @@ def test_sharp_full_scan_drop_preserves_existing_listings():
     assert reason == "完整盤點讀取量異常偏低（1/8）"
 
 
+def test_full_scan_empty_existing_district_is_reported_as_incomplete():
+    existing = [listing("A")]
+    existing[0].district = "岡山區"
+
+    reason = web_app_v7._full_scan_archive_skip_reason(
+        existing,
+        [listing("B")],
+        "大樓公寓華廈",
+        {
+            "detail_failures": 0,
+            "sources": {
+                "591": {
+                    "queries": [{
+                        "districts": ["岡山區"],
+                        "pages_scanned": 0,
+                        "candidates": 0,
+                    }]
+                }
+            },
+        },
+    )
+
+    assert reason == "完整盤點有行政區未讀取到列表：岡山區"
+
+
 def test_daily_search_marks_unseen_listings_in_same_profile_only():
     old = listing("old", lifecycle_status="updated")
     current = listing("current", lifecycle_status="seen")
@@ -411,6 +436,9 @@ def test_v7_script_supports_total_and_main_area_unit_price_sorting():
     assert 'return "非平面車位"' in script
     assert '["near_match", "rejected"].includes(state.activeStatus)' in script
     assert "syncSortButtonsV7" in script
+    assert 'const freshStatuses = ["new", "updated", "relisted"]' in script
+    assert "只看本分類本次新增／更新" in script
+    assert "本分類本次新增／更新" in script
 
 
 def test_v7_assets_support_persistent_compact_and_comfortable_cards():

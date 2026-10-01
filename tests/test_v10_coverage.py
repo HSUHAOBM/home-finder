@@ -80,6 +80,58 @@ def test_full_scan_has_no_publish_day_limit_and_collects_to_1300(monkeypatch):
     assert diagnostics["publish_days"] == 0
 
 
+def test_all_details_scan_removes_detail_limit(monkeypatch):
+    captured = {}
+
+    class FakeCrawler:
+        cache_expired = False
+        stats = {}
+
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def fetch(self):
+            return []
+
+    monkeypatch.setattr(web_app_v7, "TimedResaleCrawler", FakeCrawler)
+    settings = copy.deepcopy(web_app_v7.load_settings())
+
+    _, diagnostics = web_app_v7._crawl_for_mode(
+        "大樓公寓華廈", settings, {"collection_max_price": 1300}, "all_details",
+    )
+
+    assert captured["max_pages"] == 10
+    assert captured["publish_days"] == 0
+    assert captured["max_details"] is None
+    assert diagnostics["details_limit"] is None
+
+
+def test_all_profiles_runs_each_profile_in_order(monkeypatch):
+    calls = []
+    original_state = web_app_v7.base._state_snapshot()
+
+    def fake_run(profile, mode, *, keep_running=False):
+        calls.append((profile, mode, keep_running))
+        web_app_v7.base._update_state(error=None)
+
+    monkeypatch.setattr(web_app_v7, "_run_search", fake_run)
+    try:
+        web_app_v7._run_all_profiles("daily")
+
+        assert calls == [
+            ("大樓公寓華廈", "daily", True),
+            ("透天別墅", "daily", True),
+            ("預售屋", "daily", True),
+        ]
+        state = web_app_v7.base._state_snapshot()
+        assert state["running"] is False
+        assert state["message"] == "三類全部爬完成"
+    finally:
+        with web_app_v7.base._state_lock:
+            web_app_v7.base._state.clear()
+            web_app_v7.base._state.update(original_state)
+
+
 def test_house_daily_scan_keeps_older_active_listings(monkeypatch):
     captured = {}
 
@@ -222,7 +274,8 @@ def test_direct_591_url_parses_and_keeps_1290_listing(monkeypatch):
 3房2廳2衛
 12F/15F
 權狀坪數 41.99坪
-屋齡 11年
+11年
+屋齡
 房屋資料
 現況：住宅
 型態：電梯大樓 裝潢程度：簡易裝潢
@@ -292,6 +345,7 @@ def test_direct_591_url_parses_and_keeps_1290_listing(monkeypatch):
 
     assert result.external_id == "20579287"
     assert result.total_price_wan == 1290
+    assert result.age_years == 11
     assert result.property_type == "電梯大樓"
     assert result.main_area_ping == 21.35
     assert result.parking_type == "5.411坪，平面式，已含售金內"

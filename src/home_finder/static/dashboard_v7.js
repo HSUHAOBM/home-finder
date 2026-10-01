@@ -116,7 +116,7 @@ document.querySelector("#results").insertAdjacentHTML(
     <label>行政區
       <select id="result-district"><option value="">全部已選地區</option></select>
     </label>
-    <label class="toolbar-check"><input id="only-new" type="checkbox">只看本次新增／更新</label>
+    <label class="toolbar-check"><input id="only-new" type="checkbox">只看本分類本次新增／更新</label>
     <div class="result-view-control">
       <span>顯示</span>
       <div class="view-mode-buttons" role="group" aria-label="卡片顯示密度">
@@ -272,17 +272,20 @@ renderResults = function renderResultsV7() {
   }
   const district = document.querySelector("#result-district").value;
   const onlyNew = document.querySelector("#only-new").checked;
+  const freshStatuses = ["new", "updated", "relisted"];
   let availableItems = profileItems(state.activeProfile, state.activeStatus);
   if (district) availableItems = availableItems.filter((item) => item.district === district);
-  if (onlyNew) availableItems = availableItems.filter((item) => ["new", "updated"].includes(item.lifecycle_status) && !isTrackingStale(item));
+  if (onlyNew) availableItems = availableItems.filter((item) => freshStatuses.includes(item.lifecycle_status) && !isTrackingStale(item));
   renderNearFailureFiltersV7(availableItems);
   let items = ["near_match", "rejected"].includes(state.activeStatus) && state.nearFailureFilter
     ? availableItems.filter((item) => failureCategoriesV7(item).includes(state.nearFailureFilter))
     : availableItems;
   items = sortItemsV7(items);
-  document.querySelector("#visible-result-count").textContent = `顯示 ${items.length} 組`;
+  document.querySelector("#visible-result-count").textContent = onlyNew
+    ? `本分類本次新增／更新 ${items.length} 組`
+    : `顯示 ${items.length} 組`;
   if (!items.length) {
-    document.querySelector("#results").innerHTML = emptyState("目前沒有房源", "請切換分類、行政區或取消「只看本次新增」。");
+    document.querySelector("#results").innerHTML = emptyState("本分類本次沒有新增或更新", "可切換其他分類或行政區，或取消篩選查看既有房源。");
     return;
   }
   const activeItems = items.filter((item) => listingAvailabilityState(item) !== "removed");
@@ -312,7 +315,11 @@ renderInsight = function renderInsightV7() {
     ? state.payload.successful_crawls_by_profile[state.activeProfile]
     : null;
   const successTime = successfulCrawl ? new Date(successfulCrawl.finished_at).toLocaleString("zh-TW") : "尚無成功紀錄";
-  const mode = diagnostic.mode === "full" ? "完整盤點" : "每日更新";
+  const mode = diagnostic.mode === "full"
+    ? "完整盤點"
+    : diagnostic.mode.startsWith("days_")
+      ? `近 ${diagnostic.mode.replace("days_", "")} 天`
+      : "每日更新";
   const duration = formatDuration(diagnostic.duration_seconds);
   box.insertAdjacentHTML("beforeend", `
     <div class="coverage-summary">

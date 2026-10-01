@@ -47,6 +47,7 @@ BROKER_WATCHLIST_PATH = base.BASE_DIR / "data" / "broker_watchlist.json"
 DELETED_LISTINGS_PATH = base.BASE_DIR / "data" / "deleted_listings.json"
 URL_AVAILABILITY_PATH = base.BASE_DIR / "data" / "url_availability.json"
 DAY_RANGE_PAGES = {"days_7": 5, "days_10": 7, "days_15": 15}
+ALL_PROFILES = "全部分類"
 SEARCH_HISTORY_PATH = base.BASE_DIR / "data" / "search_history.json"
 SETTINGS_HISTORY_PATH = base.BASE_DIR / "data" / "settings_history.json"
 _result_upgrade_lock = threading.Lock()
@@ -272,7 +273,7 @@ def _crawl_for_mode(
     profile: str, settings: dict, source: dict, mode: str
 ) -> tuple[list[HomeListing], dict[str, Any]]:
     search = copy.deepcopy(settings["search"])
-    if mode == "full":
+    if mode in {"full", "all_details"}:
         search["pages"] = 10
         search["publish_days"] = 0
     elif mode.startswith("days_"):
@@ -286,7 +287,7 @@ def _crawl_for_mode(
     if profile == "預售屋":
         crawler = TimedPresaleCrawler(
             districts=settings["districts"],
-            max_details=search["presale_details"],
+            max_details=None if mode == "all_details" else search["presale_details"],
             delay_seconds=delay,
             headless=True,
         )
@@ -296,7 +297,7 @@ def _crawl_for_mode(
             districts=settings["districts"],
             max_pages=search["pages"],
             publish_days=search["publish_days"],
-            max_details=search["resale_details"],
+            max_details=None if mode == "all_details" else search["resale_details"],
             collection_max_price=float(source.get("collection_max_price", 1300)),
             delay_seconds=delay,
             headless=True,
@@ -309,7 +310,11 @@ def _crawl_for_mode(
         "districts": settings["districts"],
         "pages_requested": None if profile == "預售屋" else search["pages"],
         "publish_days": search["publish_days"],
-        "details_limit": search["presale_details"] if profile == "預售屋" else search["resale_details"],
+        "details_limit": (
+            None if mode == "all_details"
+            else search["presale_details"] if profile == "預售屋"
+            else search["resale_details"]
+        ),
         "fetched": len(listings),
         "detail_failures": sum(item.lifecycle_status == "possibly_removed" for item in listings),
         "cache_expired": bool(crawler.cache_expired),
@@ -363,6 +368,27 @@ def _full_scan_archive_skip_reason(
     profile: str,
     diagnostics: dict[str, Any],
 ) -> str | None:
+    source_diagnostics = diagnostics.get("sources") or {}
+    resale_diagnostics = source_diagnostics.get("591") or diagnostics
+    queries = resale_diagnostics.get("queries") or []
+    existing_591_districts = {
+        item.district
+        for item in existing
+        if item.source == "591中古屋"
+        and previous.previous._listing_profile(item) == profile
+    }
+    empty_existing_districts = sorted({
+        district
+        for query in queries
+        if int(query.get("pages_scanned") or 0) == 0
+        for district in query.get("districts") or []
+        if district in existing_591_districts
+    })
+    if empty_existing_districts:
+        return (
+            "完整盤點有行政區未讀取到列表："
+            + "、".join(empty_existing_districts)
+        )
     existing_count = sum(
         previous.previous._listing_profile(item) == profile for item in existing
     )
@@ -438,13 +464,14 @@ def _record_fetched_availability(
     _write_json(path, cached)
 
 
-def _run_search(profile: str, mode: str) -> None:
+def _run_search(profile: str, mode: str, *, keep_running: bool = False) -> None:
     started = time.time()
     try:
         settings = load_settings()
         config = json.loads(base.CONFIG_PATH.read_text(encoding="utf-8"))
         mode_label = (
-            "完整盤點" if mode == "full"
+            "目前分類全部詳情" if mode == "all_details"
+            else "完整盤點" if mode == "full"
             else f"近 {mode.removeprefix('days_')} 天" if mode.startswith("days_")
             else "每日更新"
         )
@@ -465,7 +492,7 @@ def _run_search(profile: str, mode: str) -> None:
         existing = previous.previous._load_existing_listings()
         archived = 0
         archive_skip_reason: str | None = None
-        if mode == "full":
+        if mode in {"full", "all_details"}:
             listings, archived, archive_skip_reason = _merge_full_scan_safely(
                 existing, fetched, profile, diagnostics
             )
@@ -504,15 +531,16 @@ def _run_search(profile: str, mode: str) -> None:
             failed_sources = "、".join(error.split("：", 1)[0] for error in partial_errors)
             status_notes.append(f"{failed_sources}讀取失敗，其他來源已保留")
         if archive_skip_reason:
-            status_notes.append("未更新可能下架狀態")
+            status_notes.append(f"覆蓋不完整：{archive_skip_reason}；未更新可能下架狀態")
         status_note = f"；{'；'.join(status_notes)}" if status_notes else ""
         base._update_state(
-            running=False,
-            phase="complete",
+            running=keep_running,
+            phase="profile_complete" if keep_running else "complete",
             active_profile=profile,
             search_mode=mode,
             message=(
-                f"{profile}{mode_label}完成：{insight['exact_match']} 組完全符合、"
+                f"{profile}{mode_label}{'部分完成' if archive_skip_reason else '完成'}："
+                f"{insight['exact_match']} 組完全符合、"
                 f"{insight['acceptable']} 組可接受、本次讀取 {len(fetched)} 筆"
                 f"{status_note}"
             ),
@@ -522,7 +550,7 @@ def _run_search(profile: str, mode: str) -> None:
         )
     except Exception as exc:  # pragma: no cover
         base._update_state(
-            running=False,
+            running=keep_running,
             phase="error",
             active_profile=profile,
             search_mode=mode,
@@ -531,6 +559,28 @@ def _run_search(profile: str, mode: str) -> None:
             duration_seconds=round(time.time() - started, 1),
             error=str(exc),
         )
+
+
+def _run_all_profiles(mode: str) -> None:
+    failures: list[str] = []
+    for profile in previous.PROFILES:
+        _run_search(profile, mode, keep_running=True)
+        snapshot = base._state_snapshot()
+        if snapshot.get("error"):
+            failures.append(profile)
+    base._update_state(
+        running=False,
+        phase="complete" if not failures else "partial_complete",
+        active_profile=ALL_PROFILES,
+        search_mode=mode,
+        message=(
+            "三類全部爬完成"
+            if not failures
+            else f"三類全部爬部分完成；失敗：{'、'.join(failures)}"
+        ),
+        finished_at=base._iso_now(),
+        error=None if not failures else "部分分類搜尋失敗",
+    )
 
 
 app = base.app
@@ -596,7 +646,7 @@ def api_search_v7():
     payload = request.get_json(silent=True) or {}
     profile = payload.get("profile")
     mode = payload.get("mode", "daily")
-    if profile not in previous.PROFILES:
+    if profile not in {*previous.PROFILES, ALL_PROFILES}:
         return jsonify({"error": "請先選擇要搜尋的目標"}), 400
     if mode not in previous.SEARCH_MODES:
         return jsonify({"error": "搜尋模式不正確"}), 400
@@ -610,7 +660,8 @@ def api_search_v7():
             duration_seconds=None, error=None,
         )
         snapshot = dict(base._state)
-    threading.Thread(target=_run_search, args=(profile, mode), daemon=True).start()
+    target = _run_all_profiles if profile == ALL_PROFILES else _run_search
+    threading.Thread(target=target, args=(mode,) if profile == ALL_PROFILES else (profile, mode), daemon=True).start()
     return jsonify(snapshot), 202
 
 

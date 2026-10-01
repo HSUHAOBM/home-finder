@@ -19,7 +19,9 @@ importPanelV10.innerHTML = `
   </form>
   <p id="listing-import-message" role="status"></p>
 `;
-document.querySelector(".active-goal").insertAdjacentElement("afterend", importPanelV10);
+const searchPanelV10 = document.querySelector(".search-command-panel");
+(searchPanelV10 || document.querySelector(".active-goal"))
+  .insertAdjacentElement("afterend", importPanelV10);
 
 const resultSearchV10 = document.createElement("label");
 resultSearchV10.className = "result-search-control";
@@ -113,8 +115,6 @@ renderNavigation = function renderNavigationV10() {
   document.querySelector("#active-goal-title").textContent =
     state.activeProfile === "大樓公寓華廈" ? "大樓・華廈" :
     document.querySelector(`.goal-card[data-profile="${state.activeProfile}"] strong`).textContent;
-  document.querySelector('#search-mode option[value="full"]').textContent =
-    "完整盤點（不限刊登時間／滿頁自動拆分）";
   importPanelV10.hidden = state.activeProfile === "預售屋";
 };
 

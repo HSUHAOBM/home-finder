@@ -158,7 +158,7 @@ class BrowserYungchingCrawler(Browser591Crawler):
         profile: str,
         districts: list[str],
         max_pages: int = 3,
-        max_details: int = 20,
+        max_details: int | None = 20,
         max_price: float = 1200,
         delay_seconds: float = 2.0,
         headless: bool = True,
@@ -238,8 +238,9 @@ class BrowserYungchingCrawler(Browser591Crawler):
             detailed: list[HomeListing] = []
             detail_page = context.new_page()
             uncached_requests = 0
-            for listing in candidates[: self.max_details * 2]:
-                if len(detailed) >= self.max_details:
+            candidate_limit = None if self.max_details is None else self.max_details * 2
+            for listing in candidates[:candidate_limit]:
+                if self.max_details is not None and len(detailed) >= self.max_details:
                     break
                 cached_data = cache.get(listing.external_id)
                 if cached_data:

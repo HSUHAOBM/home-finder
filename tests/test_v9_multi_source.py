@@ -102,3 +102,31 @@ def test_multi_source_combines_each_source_without_id_collision(monkeypatch):
     }
     assert diagnostics["partial_errors"] == []
     assert diagnostics["fetched"] == 2
+
+
+def test_all_details_removes_yungching_detail_limit(monkeypatch):
+    captured = {}
+
+    def fake_591(profile, current_settings, source, mode):
+        return [], {"source": "591", "fetched": 0, "detail_failures": 0}
+
+    class WorkingYungchingCrawler:
+        stats = {"source": "永慶房仲網", "fetched": 0, "detail_failures": 0}
+
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def fetch(self):
+            return []
+
+    monkeypatch.setattr(web_app_v9, "_original_crawl_for_mode", fake_591)
+    monkeypatch.setattr(web_app_v9, "BrowserYungchingCrawler", WorkingYungchingCrawler)
+
+    _, diagnostics = web_app_v9._crawl_for_mode_multi(
+        "大樓公寓華廈", settings(),
+        {"yungching_enabled": True, "delay_seconds": 2}, "all_details",
+    )
+
+    assert captured["max_pages"] == 5
+    assert captured["max_details"] is None
+    assert diagnostics["details_limit"] is None

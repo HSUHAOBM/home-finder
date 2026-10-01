@@ -120,13 +120,13 @@ class Browser591PresaleCrawler:
     def __init__(
         self,
         districts: list[str],
-        max_details: int = 12,
+        max_details: int | None = 12,
         delay_seconds: float = 2.0,
         headless: bool = True,
         cache_path: str | Path = "data/cache/591_presale_details.json",
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        if not 1 <= max_details <= 30:
+        if max_details is not None and not 1 <= max_details <= 30:
             raise ValueError("max_details 必須介於 1 到 30")
         if delay_seconds < 2:
             raise ValueError("delay_seconds 不可小於 2 秒")

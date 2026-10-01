@@ -132,7 +132,9 @@ function updatePresaleMarkersV17() {
   visible.forEach(({ marker }) => marker.addTo(presaleMapV17));
   document.querySelector("#presale-map-visible").textContent = `顯示 ${visible.length} 個建案`;
   document.querySelectorAll("[data-presale-stage]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.presaleStage === presaleFilterV17);
+    const active = button.dataset.presaleStage === presaleFilterV17;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
   const points = visible.map(({ marker }) => marker.getLatLng());
   if (points.length) presaleMapV17.fitBounds(L.latLngBounds(points).pad(0.18), { maxZoom: 12 });
@@ -186,7 +188,7 @@ const presaleMapButtonV17 = document.createElement("button");
 presaleMapButtonV17.id = "presale-map-button";
 presaleMapButtonV17.className = "tab presale-map-button";
 presaleMapButtonV17.type = "button";
-presaleMapButtonV17.textContent = "地圖探索";
+presaleMapButtonV17.textContent = "用地圖看建案";
 document.querySelector(".tabs").appendChild(presaleMapButtonV17);
 
 const presaleMapDialogV17 = document.createElement("dialog");
@@ -207,6 +209,11 @@ document.querySelector("#presale-map-content").addEventListener("click", (event)
   if (!district || !presaleMapV17) return;
   const match = presaleMarkersV17.find(({ item }) => item.district === district.dataset.presaleDistrict);
   if (match) {
+    document.querySelectorAll("[data-presale-district]").forEach((button) => {
+      const active = button === district;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
     presaleMapV17.setView(match.marker.getLatLng(), 12);
     match.marker.openPopup();
   }
@@ -214,15 +221,52 @@ document.querySelector("#presale-map-content").addEventListener("click", (event)
 
 function syncPresaleMapButtonV17() {
   presaleMapButtonV17.hidden = state.activeProfile !== "預售屋";
-  if (!presaleMapButtonV17.hidden) presaleMapButtonV17.textContent = `地圖探索 ${allPresalesV17().length}`;
+  if (!presaleMapButtonV17.hidden) presaleMapButtonV17.textContent = `用地圖看建案（${allPresalesV17().length}）`;
+}
+
+const resultGuideV17 = document.createElement("div");
+resultGuideV17.id = "result-guide";
+resultGuideV17.className = "result-guide";
+resultGuideV17.setAttribute("role", "note");
+document.querySelector(".tabs").insertAdjacentElement("afterend", resultGuideV17);
+
+const RESULT_GUIDES_V17 = {
+  exact_match: ["優先查看", "必要條件與理想條件較接近，可先比較價格、格局和來源更新時間。"],
+  acceptable: ["可以考慮", "符合必要條件，但仍有偏好差異；打開房源卡查看原因。"],
+  qualified: ["直接符合", "先比較總價、主建物和車位，再到原始房源確認最新資訊。"],
+  needs_verification: ["需要確認", "刊登資訊不足；價格、主建物或戶別車位標示待確認時，請先向銷售方查證。"],
+  near_match: ["接近條件", "部分必要條件未達標；可從卡片中的差異判斷是否值得再看。"],
+  rejected: ["已排除", "卡片會列出未通過的必要條件，方便回頭檢查篩選設定。"],
+  favorites: ["已收藏", "集中比較想看的房源；來源狀態可能變動，安排看屋前請再次確認。"],
+};
+
+function updateResultGuideV17() {
+  const [title, detail] = RESULT_GUIDES_V17[state.activeStatus] || RESULT_GUIDES_V17.qualified;
+  resultGuideV17.innerHTML = `<strong>${title}</strong><span>${detail}</span>`;
+  document.querySelectorAll(".goal-card").forEach((card) => {
+    card.setAttribute("aria-pressed", String(card.dataset.profile === state.activeProfile));
+  });
+  document.querySelectorAll(".tabs .tab[data-status]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.status === state.activeStatus));
+  });
 }
 
 const previousRenderNavigationV17 = renderNavigation;
 renderNavigation = function renderNavigationV17() {
   previousRenderNavigationV17();
   syncPresaleMapButtonV17();
+  updateResultGuideV17();
+};
+const previousRenderResultsV17 = renderResults;
+renderResults = function renderResultsV17() {
+  previousRenderResultsV17();
+  updateResultGuideV17();
 };
 document.querySelectorAll(".goal-card").forEach((card) => card.addEventListener("click", syncPresaleMapButtonV17));
+document.querySelector(".tabs").addEventListener("click", (event) => {
+  if (event.target.closest("[data-status]")) updateResultGuideV17();
+});
 syncPresaleMapButtonV17();
+updateResultGuideV17();
 
 window.presaleStageV17 = presaleStageV17;

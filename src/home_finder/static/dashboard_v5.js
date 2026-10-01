@@ -7,6 +7,9 @@ if (activeGoal) {
         <span class="button-dot" aria-hidden="true"></span>
         <span id="selected-search-label">搜尋此目標</span>
       </button>
+      <button id="all-profiles-search-button" class="search-button secondary-search-button" type="button">
+        <strong>三類依序爬</strong><small>大樓・透天・預售</small>
+      </button>
     </div>`);
 }
 
@@ -40,8 +43,8 @@ function openActiveSettings() {
   const isPresale = profile === "預售屋";
   document.querySelector("#resale-details").closest("label").hidden = isPresale;
   document.querySelector("#presale-details").closest("label").hidden = !isPresale;
-  document.querySelector("#search-pages").closest("label").hidden = isPresale;
-  document.querySelector("#publish-days").closest("label").hidden = isPresale;
+  document.querySelector("#search-pages").closest("label").hidden = true;
+  document.querySelector("#publish-days").closest("label").hidden = true;
 
   const meta = PROFILE_META[profile];
   document.querySelector(".dialog-header h2").textContent = `調整${meta.number}條件`;
@@ -132,8 +135,10 @@ renderStatus = function renderStatusV5(status) {
   previousRenderStatusV5(status);
   const button = document.querySelector("#selected-search-button");
   const settingsButton = document.querySelector("#selected-settings-button");
-  if (!button || !settingsButton) return;
+  const allButton = document.querySelector("#all-profiles-search-button");
+  if (!button || !settingsButton || !allButton) return;
   button.disabled = status.running;
+  allButton.disabled = status.running;
   settingsButton.disabled = status.running;
   button.classList.toggle("running", status.running);
   const activeMeta = PROFILE_META[state.activeProfile];

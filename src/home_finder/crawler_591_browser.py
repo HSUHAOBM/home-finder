@@ -162,14 +162,14 @@ class Browser591Crawler:
     def __init__(
         self,
         districts: list[str],
-        max_details: int = 20,
+        max_details: int | None = 20,
         delay_seconds: float = 2.0,
         headless: bool = True,
         cache_path: str | Path = DETAIL_CACHE_PATH,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        if not 1 <= max_details <= 50:
-            raise ValueError("max_details 必須介於 1 到 50")
+        if max_details is not None and not 1 <= max_details <= 100:
+            raise ValueError("max_details 必須介於 1 到 100")
         if delay_seconds < 2:
             raise ValueError("delay_seconds 不可小於 2 秒")
         self.districts = districts

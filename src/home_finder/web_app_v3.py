@@ -100,7 +100,7 @@ def validate_settings(raw: dict) -> dict:
     result["districts"] = list(dict.fromkeys(districts))
     search = raw.get("search", {})
     result["search"] = {
-        "resale_details": _integer(search.get("resale_details"), "中古屋讀取數", 1, 50),
+        "resale_details": _integer(search.get("resale_details"), "中古屋讀取數", 1, 100),
         "presale_details": _integer(search.get("presale_details"), "預售屋讀取數", 1, 50),
     }
 

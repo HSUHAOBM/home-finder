@@ -41,12 +41,13 @@ def _crawl_for_mode_multi(
         }
 
     search = settings["search"]
+    full_scope = mode in {"full", "all_details"}
     max_pages = (
-        5 if mode == "full"
+        5 if full_scope
         else crawl_app.DAY_RANGE_PAGES[mode] if mode in crawl_app.DAY_RANGE_PAGES
         else min(int(search["pages"]), 3)
     )
-    max_details = int(
+    max_details = None if mode == "all_details" else int(
         source.get("yungching_max_details", min(int(search["resale_details"]), 20))
     )
     try:
@@ -79,15 +80,18 @@ def _crawl_for_mode_multi(
         "district_count": len(settings["districts"]),
         "districts": settings["districts"],
         "pages_requested": (
-            10 if mode == "full"
+            10 if full_scope
             else crawl_app.DAY_RANGE_PAGES.get(mode, search["pages"])
         ),
         "publish_days": (
-            0 if mode == "full"
+            0 if full_scope
             else int(mode.removeprefix("days_")) if mode.startswith("days_")
             else search["publish_days"]
         ),
-        "details_limit": int(search["resale_details"]) + max_details,
+        "details_limit": (
+            None if mode == "all_details"
+            else int(search["resale_details"]) + max_details
+        ),
         "fetched": len(fetched),
         "detail_failures": sum(
             int(item.get("detail_failures") or 0)

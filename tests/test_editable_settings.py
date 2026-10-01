@@ -16,6 +16,15 @@ def test_settings_reject_target_above_maximum():
         web_app_v3.validate_settings(settings)
 
 
+def test_settings_allow_one_hundred_resale_details():
+    settings = copy.deepcopy(web_app_v3.DEFAULT_SETTINGS)
+    settings["search"]["resale_details"] = 100
+
+    validated = web_app_v3.validate_settings(settings)
+
+    assert validated["search"]["resale_details"] == 100
+
+
 def test_changed_area_threshold_re_evaluates_listing():
     listing = HomeListing(
         source="591中古屋",
@@ -48,3 +57,4 @@ def test_v3_homepage_has_settings_and_three_goals():
     assert "大樓・公寓・華廈" in page
     assert "透天・車墅" in page
     assert "預售屋" in page
+    assert 'id="resale-details" type="number" min="1" max="100"' in page

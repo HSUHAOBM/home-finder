@@ -139,10 +139,12 @@ def test_v16_assets_launcher_and_api_validation():
     assert 'class="listing-availability-check"' not in script
     assert "/api/listing-availability" not in script
     search_mode_script = (root / "src/home_finder/static/dashboard_v6.js").read_text(encoding="utf-8")
-    assert 'value="days_7"' in search_mode_script
-    assert 'value="days_10"' in search_mode_script
-    assert 'value="days_15"' in search_mode_script
-    assert "每日更新（不限刊登時間" in search_mode_script
+    assert 'data-search-mode="daily"' in search_mode_script
+    assert 'data-search-mode="days_15"' in search_mode_script
+    assert 'data-search-mode="full"' in search_mode_script
+    assert 'data-search-mode="all_details"' in search_mode_script
+    assert "三類依序爬" in (root / "src/home_finder/static/dashboard_v5.js").read_text(encoding="utf-8")
+    assert "不限刊登時間・每區" in search_mode_script
     result_search_script = (root / "src/home_finder/static/dashboard_v10.js").read_text(encoding="utf-8")
     assert "variant.id, variant.title" in result_search_script
     assert "同路段參考" not in script

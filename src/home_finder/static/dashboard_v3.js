@@ -113,7 +113,11 @@ async function loadResults() {
   const payload = await readJsonResponse(response, "讀取結果失敗");
   state.payload = payload;
   const successfulCrawl = payload.last_successful_crawl;
-  const mode = successfulCrawl && successfulCrawl.mode === "full" ? "完整盤點" : "每日更新";
+  const mode = successfulCrawl && successfulCrawl.mode === "full"
+    ? "完整盤點"
+    : successfulCrawl && successfulCrawl.mode.startsWith("days_")
+      ? `近 ${successfulCrawl.mode.replace("days_", "")} 天`
+      : "每日更新";
   const duration = successfulCrawl ? formatDuration(successfulCrawl.duration_seconds) : null;
   $("#updated-at").textContent = successfulCrawl
     ? `最近成功爬蟲：${new Date(successfulCrawl.finished_at).toLocaleString("zh-TW")}・${successfulCrawl.profile}・${mode}・${successfulCrawl.fetched} 筆${duration ? `・耗時 ${duration}` : ""}`

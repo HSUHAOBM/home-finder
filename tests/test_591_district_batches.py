@@ -78,6 +78,26 @@ def test_collect_candidates_fetches_every_district_and_interleaves_results(monke
     assert [item.external_id for item in results] == ["A", "B", "C", "DUP"]
 
 
+def test_full_scan_retries_an_empty_district_once(monkeypatch):
+    subject = crawler(["岡山區"])
+    subject.publish_days = 0
+    calls = 0
+
+    def fake_fetch(_context, _batch):
+        nonlocal calls
+        calls += 1
+        return [] if calls == 1 else [listing("OK", "岡山區")]
+
+    monkeypatch.setattr(subject, "_fetch_batch_candidates", fake_fetch)
+
+    results = subject._collect_candidates(object())
+
+    assert [item.external_id for item in results] == ["OK"]
+    assert calls == 2
+    assert subject.stats["empty_batch_retries"] == ["岡山區"]
+    assert subject.stats["empty_batch_retry_count"] == 1
+
+
 def test_detail_limit_keeps_remaining_list_candidates(monkeypatch, tmp_path: Path):
     subject = MultiPage591ResaleCrawler(
         profile="大樓公寓華廈",

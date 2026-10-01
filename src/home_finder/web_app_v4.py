@@ -20,7 +20,7 @@ from .user_ranking_v5 import evaluate_all
 
 DEFAULT_SETTINGS = copy.deepcopy(previous.DEFAULT_SETTINGS)
 DEFAULT_SETTINGS["search"] = {
-    "resale_details": 50,
+    "resale_details": 100,
     "presale_details": 30,
     "pages": 3,
     "publish_days": 3,

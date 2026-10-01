@@ -14,7 +14,8 @@ if (searchGrid) {
     </label>`);
   document.querySelector("#resale-details").parentElement.firstChild.textContent = "每種中古屋詳情上限";
   document.querySelector("#presale-details").max = "30";
-  searchGrid.insertAdjacentHTML("afterend", '<p class="source-note">中古屋會分開爬大樓與透天，各自至少 3 頁；預售屋沒有有效第二頁，改為讀完勾選行政區的列表，並以爬蟲首次發現時間判斷新案。</p>');
+  searchGrid.closest(".settings-block").querySelector("h3").textContent = "搜尋行政區與詳情讀取上限";
+  searchGrid.insertAdjacentHTML("afterend", '<p class="source-note">搜尋日期與列表頁數由視窗外的三種搜尋範圍決定。這裡的詳情上限用來控制每輪最多開啟多少房源詳頁。</p>');
 }
 
 const condoSwitches = document.querySelector(".condo-settings .switches");
@@ -133,10 +134,4 @@ listingCard = function listingCardV4(item) {
 const previousRenderNavigation = renderNavigation;
 renderNavigation = function renderNavigationV4() {
   previousRenderNavigation();
-  if (!state.settings) return;
-  const search = state.settings.search;
-  document.querySelector("#criteria-summary").insertAdjacentHTML(
-    "beforeend",
-    `<span>中古屋近 ${search.publish_days || "不限"} 天</span><span>每種 ${search.pages} 頁</span>`
-  );
 };

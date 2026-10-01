@@ -34,6 +34,7 @@ PROFILE_TYPES = {
     "透天別墅": {"透天厝", "別墅"},
 }
 UPDATE_TEXT = re.compile(r"(?:剛剛|\d+\s*(?:分鐘|小時|天)前|今天|昨日|昨天)\s*更新")
+DETAIL_AGE = re.compile(r"屋齡\s*([\d.]+)\s*年|([\d.]+)\s*年\s*屋齡")
 COLLECTION_PRICE_BANDS = ("0_500", "500_750", "750_1000", "1000_1250", "1250_1500")
 
 
@@ -44,7 +45,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         districts: list[str],
         max_pages: int = 3,
         publish_days: int = 3,
-        max_details: int = 50,
+        max_details: int | None = 50,
         collection_max_price: float = 1300,
         **kwargs,
     ) -> None:
@@ -253,10 +254,18 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             list_page.close()
 
     def _collect_candidates(self, context: BrowserContext) -> list[HomeListing]:
-        batch_candidates = [
-            self._fetch_batch_candidates(context, districts)
-            for districts in self._district_batches()
-        ]
+        batch_candidates: list[list[HomeListing]] = []
+        empty_batch_retries: list[str] = []
+        for districts in self._district_batches():
+            batch = self._fetch_batch_candidates(context, districts)
+            if not batch and self.publish_days == 0:
+                district = districts[0]
+                empty_batch_retries.append(district)
+                self.sleep(self.delay_seconds)
+                batch = self._fetch_batch_candidates(context, districts)
+            batch_candidates.append(batch)
+        self.stats["empty_batch_retries"] = empty_batch_retries
+        self.stats["empty_batch_retry_count"] = len(empty_batch_retries)
         candidates: list[HomeListing] = []
         seen: set[str] = set()
         max_batch_size = max((len(batch) for batch in batch_candidates), default=0)
@@ -288,7 +297,10 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 if cached_data:
                     detailed.append(self._merge_cached(listing, HomeListing.from_dict(cached_data)))
                     continue
-                if uncached_requests >= self.max_details:
+                if (
+                    self.max_details is not None
+                    and uncached_requests >= self.max_details
+                ):
                     deferred_details += 1
                     detailed.append(
                         replace(
@@ -370,7 +382,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             total_area = re.search(
                 r"(?:權狀坪數|權狀)\s*([\d.]+)\s*坪", compact
             )
-            age = re.search(r"屋齡\s*([\d.]+)\s*年", compact)
+            age = DETAIL_AGE.search(compact)
             if not price or not layout or not district:
                 raise ValueError("591 詳情頁缺少價格、格局或行政區，無法加入")
             listing = HomeListing(
@@ -385,7 +397,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 rooms=float(layout.group("rooms")),
                 living_rooms=float(layout.group("living")),
                 baths=float(layout.group("baths")),
-                age_years=float(age.group(1)) if age else None,
+                age_years=float(age.group(1) or age.group(2)) if age else None,
                 current_floor=int(floor.group("current")) if floor else None,
                 total_floors=int(floor.group("total")) if floor else None,
                 search_profile=self.profile,

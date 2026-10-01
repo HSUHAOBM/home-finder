@@ -17,22 +17,64 @@ exactTabV6.insertAdjacentHTML(
 );
 
 const goalActionBarV6 = document.querySelector(".goal-action-bar");
+goalActionBarV6.classList.add("search-command-panel");
+document.querySelector(".active-goal").insertAdjacentElement("afterend", goalActionBarV6);
 goalActionBarV6.insertAdjacentHTML(
   "afterbegin",
-  `<label class="search-mode-control">搜尋範圍
-    <select id="search-mode">
-      <option value="daily">每日更新（近 3 天／3 頁）</option>
-      <option value="days_7">近 7 天／每區 5 頁</option>
-      <option value="days_10">近 10 天／每區 7 頁</option>
-      <option value="days_15">近 15 天／每區 15 頁</option>
-      <option value="full">完整盤點（近 30 天／10 頁）</option>
-    </select>
-  </label>`
+  `<div class="search-mode-control">
+    <header class="search-mode-heading">
+      <span class="section-label">SEARCH COVERAGE</span>
+      <strong>這次要搜尋多大的範圍？</strong>
+      <small>日常先找新房源；需要補漏時再擴大範圍或完整盤點。</small>
+    </header>
+    <input id="search-mode" type="hidden" value="daily">
+    <div class="search-mode-buttons" role="group" aria-label="選擇搜尋範圍">
+      <button type="button" class="search-mode-button active" data-search-mode="daily">
+        <strong>每日找新房源</strong><small>近 5 天・每區 3 頁</small>
+      </button>
+      <button type="button" class="search-mode-button" data-search-mode="days_15">
+        <strong>擴大搜尋</strong><small>近 15 天・每區 15 頁</small>
+      </button>
+      <button type="button" class="search-mode-button full-scan-button" data-search-mode="full">
+        <strong>完整盤點現有房源</strong><small>不限刊登時間・建議每週執行</small>
+      </button>
+      <button type="button" class="search-mode-button full-scan-button" data-search-mode="all_details">
+        <strong>目前分類｜全部詳情</strong><small>不限刊登時間・不限詳情筆數</small>
+      </button>
+    </div>
+    <p id="search-mode-help" class="search-mode-help">快速找出最近刊登或更新的房源。</p>
+  </div>`
 );
+
+const SEARCH_MODE_HELP_V6 = {
+  daily: "快速找出最近刊登或更新的房源。",
+  days_15: "補找近 15 天內可能被每日搜尋漏掉的房源。",
+  full: "盤點所選行政區目前仍在 591 列表的房源，不限制刊登日期；滿頁時會依價格與房型拆分。",
+  all_details: "只處理目前選取的分類，並逐筆讀取本輪找到的所有房源詳情。",
+};
+
+function selectSearchModeV6(mode) {
+  const select = document.querySelector("#search-mode");
+  select.value = mode;
+  document.querySelectorAll("[data-search-mode]").forEach((button) => {
+    const selected = button.dataset.searchMode === mode;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  document.querySelector("#search-mode-help").textContent = SEARCH_MODE_HELP_V6[mode] || "";
+}
+
+document.querySelectorAll("[data-search-mode]").forEach((button) => {
+  button.addEventListener("click", () => selectSearchModeV6(button.dataset.searchMode));
+});
 
 const oldSearchButtonV6 = document.querySelector("#selected-search-button");
 const cleanSearchButtonV6 = oldSearchButtonV6.cloneNode(true);
 oldSearchButtonV6.replaceWith(cleanSearchButtonV6);
+
+const oldAllProfilesButtonV6 = document.querySelector("#all-profiles-search-button");
+const cleanAllProfilesButtonV6 = oldAllProfilesButtonV6.cloneNode(true);
+oldAllProfilesButtonV6.replaceWith(cleanAllProfilesButtonV6);
 
 function variantsHtmlV6(item) {
   if (!item.variants || item.variants.length <= 1) return "";
@@ -92,10 +134,10 @@ renderNavigation = function renderNavigationV6() {
   previousRenderNavigationV6();
   if (state.settings) {
     const search = state.settings.search;
-    document.querySelector('#search-mode option[value="daily"]').textContent =
-      state.activeProfile === "透天別墅"
-        ? `每日更新（不限刊登時間／${search.pages} 頁）`
-        : `每日更新（近 ${search.publish_days || "不限"} 天／${search.pages} 頁）`;
+    const dailyDetail = document.querySelector('[data-search-mode="daily"] small');
+    dailyDetail.textContent = state.activeProfile === "透天別墅"
+      ? `不限刊登時間・每區 ${search.pages} 頁`
+      : `近 ${search.publish_days || "不限"} 天・每區 ${search.pages} 頁`;
   }
   const insights = state.payload ? state.payload.profile_insights || {} : {};
   document.querySelectorAll(".goal-card").forEach((card) => {
@@ -122,9 +164,13 @@ const previousRenderStatusV6 = renderStatus;
 renderStatus = function renderStatusV6(status) {
   previousRenderStatusV6(status);
   document.querySelector("#search-mode").disabled = status.running;
+  document.querySelectorAll("[data-search-mode]").forEach((button) => {
+    button.disabled = status.running;
+  });
+  document.querySelector("#all-profiles-search-button").disabled = status.running;
   if (status.running) {
     const modeLabels = {
-      full: "完整盤點", days_7: "近 7 天／每區 5 頁",
+      all_details: "目前分類全部詳情", full: "完整盤點", days_7: "近 7 天／每區 5 頁",
       days_10: "近 10 天／每區 7 頁",
       days_15: "近 15 天／每區 15 頁", daily: "每日更新",
     };
@@ -158,3 +204,23 @@ document.querySelector('[data-status="acceptable"]').addEventListener("click", (
   renderResults();
 });
 cleanSearchButtonV6.addEventListener("click", startSelectedSearchV6);
+
+async function startAllProfilesSearchV6() {
+  const button = document.querySelector("#all-profiles-search-button");
+  const mode = document.querySelector("#search-mode").value;
+  button.disabled = true;
+  try {
+    const response = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: "全部分類", mode }),
+    });
+    const payload = await readJsonResponse(response, "無法開始三類全部爬");
+    renderStatus(payload);
+  } catch (error) {
+    document.querySelector("#status-message").textContent = `無法開始：${error.message}`;
+    button.disabled = false;
+  }
+}
+
+cleanAllProfilesButtonV6.addEventListener("click", startAllProfilesSearchV6);
