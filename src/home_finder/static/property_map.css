@@ -6,6 +6,13 @@ button, input, select { font: inherit; }
 .map-shell { display: grid; grid-template-rows: auto auto minmax(0,1fr); width: 100%; height: 100%; padding: 10px 14px 12px; gap: 7px; }
 .map-header { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 0 4px; }
 .map-header span { color: var(--green); font-size: .68rem; font-weight: 900; letter-spacing: .16em; }
+.map-profile-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.map-profile-tabs { display: flex; align-items: center; gap: 3px; }
+.map-profile-tabs button { padding: 2px 7px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: .7rem; font-weight: 800; cursor: pointer; }
+.map-profile-tabs button + button { position: relative; margin-left: 5px; }
+.map-profile-tabs button + button::before { position: absolute; left: -6px; color: #a5aaa5; content: "｜"; }
+.map-profile-tabs button:hover { color: var(--green); background: var(--green-soft); }
+.map-profile-tabs button.active { background: var(--green); color: white; }
 .map-title-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .map-header h1 { margin: 1px 0; font-family: "Noto Serif TC", serif; font-size: clamp(1.25rem,1.65vw,1.7rem); line-height: 1.2; }
 .map-header p { margin: 0; color: var(--muted); font-size: .7rem; }

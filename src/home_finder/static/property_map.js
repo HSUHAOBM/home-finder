@@ -9,7 +9,7 @@ const STATUS_META = {
 };
 const DISTRICT_CENTERS = { "三民區":[22.6499,120.3179], "左營區":[22.6877,120.2946], "楠梓區":[22.729,120.326], "橋頭區":[22.7525,120.3059], "岡山區":[22.7971,120.295], "燕巢區":[22.793,120.363], "仁武區":[22.7012,120.3608], "大社區":[22.731,120.3477] };
 const state = { payload:null, items:[], visible:[], markers:[], selected:null, map:null, status:"exact_match" };
-const profile = window.INITIAL_MAP_PROFILE || "大樓公寓華廈";
+let profile = PROFILE_LABELS[window.INITIAL_MAP_PROFILE] ? window.INITIAL_MAP_PROFILE : "大樓公寓華廈";
 const requestedStatus = STATUS_META[window.INITIAL_MAP_STATUS] ? window.INITIAL_MAP_STATUS : "exact_match";
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
 const numberText = (value) => value == null || value === "" ? "待確認" : new Intl.NumberFormat("zh-TW", { maximumFractionDigits:2 }).format(value);
@@ -147,6 +147,10 @@ function loadStatus(status) {
   state.selected = null;
   document.querySelectorAll("#map-status-tabs button").forEach((button) => button.classList.toggle("active", button.dataset.status === status));
   document.querySelector("#map-title").textContent = `${PROFILE_LABELS[profile] || profile}・${STATUS_META[status].label}房源地圖`;
+  const url = new URL(window.location.href);
+  url.searchParams.set("profile", profile);
+  url.searchParams.set("status", status);
+  window.history.replaceState(null, "", url);
   const districtSelect = document.querySelector("#map-district");
   districtSelect.innerHTML = '<option value="">全部行政區</option>';
   const districts = [...new Set(state.items.map((item) => item.district).filter(Boolean))].sort((a,b) => a.localeCompare(b,"zh-TW"));
@@ -162,6 +166,19 @@ function loadStatus(status) {
   if (state.visible[0]) renderDetail(state.visible[0]);
   else document.querySelector("#map-detail").innerHTML = '<div class="empty-detail"><b>這個分類目前沒有房源</b><span>可切換上方分類繼續查看。</span></div>';
 }
+function selectProfile(nextProfile) {
+  profile = PROFILE_LABELS[nextProfile] ? nextProfile : "大樓公寓華廈";
+  document.querySelectorAll("#map-profile-tabs button").forEach((button) => {
+    const active = button.dataset.profile === profile;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  document.querySelectorAll("#map-status-tabs button").forEach((button) => {
+    const sourceItems = button.dataset.status === "favorites" ? (state.payload.favorites || []) : (state.payload.groups?.[button.dataset.status] || []);
+    button.querySelector("span").textContent = sourceItems.filter((item) => item.profile === profile).length;
+  });
+  loadStatus(state.status);
+}
 document.querySelector("#map-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-item-key]"); if (!button) return;
   const match = state.markers.find(({item}) => itemKey(item) === button.dataset.itemKey); if (!match) return;
@@ -175,14 +192,15 @@ document.querySelector("#map-status-tabs").addEventListener("click", (event) => 
   const button = event.target.closest("[data-status]");
   if (button) loadStatus(button.dataset.status);
 });
+document.querySelector("#map-profile-tabs").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-profile]");
+  if (button && state.payload) selectProfile(button.dataset.profile);
+});
 
 fetch("/api/results").then((response) => response.ok ? response.json() : Promise.reject(new Error("讀取房源失敗"))).then((payload) => {
   state.payload = payload;
-  document.querySelectorAll("#map-status-tabs button").forEach((button) => {
-    const sourceItems = button.dataset.status === "favorites" ? (payload.favorites || []) : (payload.groups?.[button.dataset.status] || []);
-    button.querySelector("span").textContent = sourceItems.filter((item) => item.profile === profile).length;
-  });
   state.map = L.map("property-map", { zoomControl:true }).setView([22.72,120.34],10);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:18, attribution:"&copy; OpenStreetMap contributors" }).addTo(state.map);
-  loadStatus(requestedStatus);
+  state.status = requestedStatus;
+  selectProfile(profile);
 }).catch((error) => { document.querySelector("#map-count").textContent = error.message; });

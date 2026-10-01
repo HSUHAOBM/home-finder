@@ -19,6 +19,9 @@ def test_property_map_opens_as_standalone_page_with_rich_detail():
     page = response.get_data(as_text=True)
     assert 'id="property-map"' in page
     assert 'id="map-status-tabs"' in page
+    assert 'id="map-profile-tabs"' in page
+    assert 'data-profile="透天別墅"' in page
+    assert 'data-profile="預售屋"' in page
     assert 'data-status="acceptable"' in page
     assert 'data-status="rejected"' in page
     assert 'data-status="favorites"' in page
@@ -35,6 +38,8 @@ def test_property_map_opens_as_standalone_page_with_rich_detail():
     assert "failureCategories" in script
     assert "sortedItems" in script
     assert 'status === "favorites"' in script
+    assert "selectProfile" in script
+    assert 'url.searchParams.set("profile", profile)' in script
     assert "focusMarker" in script
     assert "marker.closeTooltip()" in script
     assert "state.map.flyTo" in script
