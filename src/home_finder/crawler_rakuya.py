@@ -18,7 +18,7 @@ BASE_URL = "https://www.rakuya.com.tw/sell/result"
 DETAIL_CACHE_PATH = Path("data/cache/rakuya_details.json")
 DETAIL_CACHE_TTL_SECONDS = 24 * 60 * 60
 DETAIL_CACHE_SCHEMA_VERSION = 2
-DETAIL_PARSER_VERSION = 2
+DETAIL_PARSER_VERSION = 3
 DISTRICT_ZIPCODES = {
     "三民區": "807", "左營區": "813", "楠梓區": "811",
     "橋頭區": "825", "仁武區": "814", "大社區": "815",
@@ -162,6 +162,9 @@ def parse_rakuya_detail_text(listing: HomeListing, body_text: str) -> HomeListin
         has_parking = "無" not in parking_type
     else:
         has_parking = listing.has_parking
+    resolved_parking_type = parking_type or (
+        "無" if parking_value and "無" in parking_value else listing.parking_type
+    )
 
     return replace(
         listing,
@@ -176,7 +179,7 @@ def parse_rakuya_detail_text(listing: HomeListing, body_text: str) -> HomeListin
             if main_area and re.fullmatch(r"[\d.]+\s*坪", main_area)
             else listing.main_area_ping
         ),
-        parking_type=parking_type or listing.parking_type,
+        parking_type=resolved_parking_type,
         has_parking=has_parking,
         origin_source=brand_match.group("brand") if brand_match else listing.origin_source,
         broker_name=company_match.group("company") if company_match else listing.broker_name,

@@ -51,6 +51,22 @@ def test_changed_area_threshold_re_evaluates_listing():
     assert "低於最低 20" in result.hard_failures[0]
 
 
+def test_one_bath_is_a_required_failure_but_listing_is_preserved():
+    listing = HomeListing(
+        source="591中古屋", external_id="B", title="一衛房源",
+        url="https://example.com/B", city="高雄市", district="楠梓區",
+        total_price_wan=1100, deal_kind="中古屋", property_type="電梯大樓",
+        main_area_ping=18, rooms=2, baths=1, age_years=5,
+        parking_type="平面式", has_parking=True,
+    )
+    settings = copy.deepcopy(web_app_v3.DEFAULT_SETTINGS)
+
+    result = evaluate_listing(listing, "大樓公寓華廈", settings)
+
+    assert result.status == "rejected"
+    assert result.hard_failures == ["衛浴數 1，低於最低 2"]
+
+
 def test_v3_homepage_has_settings_and_three_goals():
     page = web_app_v3.app.test_client().get("/").get_data(as_text=True)
     assert "調整條件" in page
@@ -58,3 +74,4 @@ def test_v3_homepage_has_settings_and_three_goals():
     assert "透天・車墅" in page
     assert "預售屋" in page
     assert 'id="resale-details" type="number" min="1" max="100"' in page
+    assert "最低衛浴數（必要）" in page

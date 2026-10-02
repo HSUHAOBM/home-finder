@@ -80,8 +80,8 @@ const previousListingCardV7 = listingCard;
 listingCard = function listingCardV7(item) {
   let html = previousListingCardV7(item);
   const metric = item.metric_value === null || item.metric_value === undefined
-    ? escapeHtml(item.metric_label || "未通過必要條件")
-    : `${escapeHtml(item.metric_label)} ${number(item.metric_value)}%`;
+      ? escapeHtml(item.metric_label || "未通過必要條件")
+      : `${escapeHtml(item.metric_label)} ${number(item.metric_value)}%`;
   html = html.replace(/<span class="score">.*?<\/span>/, `<span class="score metric-${escapeHtml(item.status)}">${metric}</span>`);
   return html;
 };
@@ -102,6 +102,8 @@ document.querySelector("#results").insertAdjacentHTML(
         <option value="main-unit-desc">主建單價高到低</option>
         <option value="age-asc">屋齡新到舊</option>
         <option value="age-desc">屋齡舊到新</option>
+        <option value="baths-desc">衛浴多到少</option>
+        <option value="baths-asc">衛浴少到多</option>
         <option value="floor">樓層比例高到低</option>
       </select>
       <div class="sort-buttons" role="group" aria-label="房源排序方式">
@@ -110,11 +112,15 @@ document.querySelector("#results").insertAdjacentHTML(
         <button type="button" data-sort-field="total-unit">權狀單價</button>
         <button type="button" data-sort-field="main-unit">室內單價</button>
         <button type="button" data-sort-field="age">屋齡</button>
+        <button type="button" data-sort-field="baths">衛浴</button>
         <button type="button" data-sort-field="newest">最新</button>
     </div>
       </div>
     <label>行政區
       <select id="result-district"><option value="">全部已選地區</option></select>
+    </label>
+    <label>衛浴
+      <select id="result-baths"><option value="">全部</option><option value="1">1 衛</option><option value="2plus">2 衛以上</option><option value="unknown">待確認</option></select>
     </label>
     <label class="toolbar-check"><input id="only-new" type="checkbox">只看本分類本次新增／更新</label>
     <div class="result-view-control">
@@ -134,7 +140,7 @@ state.nearFailureFilter = "";
 state.resultSort = { field: "newest", direction: "desc" };
 const SORT_DEFAULT_DIRECTIONS_V7 = {
   metric: "desc", price: "asc", "total-unit": "asc", "main-unit": "asc",
-  age: "asc", newest: "desc", failures: "asc",
+  age: "asc", baths: "desc", newest: "desc", failures: "asc",
 };
 const SORT_DIRECTION_LABELS_V7 = {
   metric: { asc: "符合度低到高", desc: "符合度高到低" },
@@ -142,6 +148,7 @@ const SORT_DIRECTION_LABELS_V7 = {
   "total-unit": { asc: "權狀單價低到高", desc: "權狀單價高到低" },
   "main-unit": { asc: "室內單價低到高", desc: "室內單價高到低" },
   age: { asc: "屋齡新到舊", desc: "屋齡舊到新" },
+  baths: { asc: "衛浴少到多", desc: "衛浴多到少" },
   newest: { asc: "首次發現舊到新", desc: "首次發現新到舊" },
   failures: { asc: "不符合項目少到多", desc: "不符合項目多到少" },
 };
@@ -248,8 +255,8 @@ function sortItemsV7(items) {
     return descending ? second - first : first - second;
   });
 
-  if (mode === "failures" || mode === "failures-asc") return copy.sort((a, b) => (a.failures || []).length - (b.failures || []).length || failureCategoriesV7(a).join("\u3001").localeCompare(failureCategoriesV7(b).join("\u3001"), "zh-TW") || (b.metric_value || 0) - (a.metric_value || 0));
-  if (mode === "failures-desc") return copy.sort((a, b) => (b.failures || []).length - (a.failures || []).length || (b.metric_value || 0) - (a.metric_value || 0));
+  if (mode === "failures" || mode === "failures-asc") return copy.sort((a, b) => (a.condition_gap_score || 0) - (b.condition_gap_score || 0) || (a.failures || []).length - (b.failures || []).length || failureCategoriesV7(a).join("\u3001").localeCompare(failureCategoriesV7(b).join("\u3001"), "zh-TW"));
+  if (mode === "failures-desc") return copy.sort((a, b) => (b.condition_gap_score || 0) - (a.condition_gap_score || 0) || (b.failures || []).length - (a.failures || []).length);
   if (mode === "price" || mode === "price-asc") return numericSort("price");
   if (mode === "price-desc") return numericSort("price", true);
   if (mode === "total-unit-asc") return numericSort("price_per_total_area");
@@ -258,6 +265,8 @@ function sortItemsV7(items) {
   if (mode === "main-unit-desc") return numericSort("price_per_main_area", true);
   if (mode === "age-asc") return numericSort("age");
   if (mode === "age-desc") return numericSort("age", true);
+  if (mode === "baths-asc") return numericSort("baths");
+  if (mode === "baths-desc") return numericSort("baths", true);
   if (mode === "floor") return copy.sort((a, b) => ((b.floor || 0) / (b.total_floors || 999)) - ((a.floor || 0) / (a.total_floors || 999)));
   if (mode === "newest") return copy.sort((a, b) => String(b.first_seen_at || "").localeCompare(String(a.first_seen_at || "")));
   if (mode === "newest-asc") return copy.sort((a, b) => String(a.first_seen_at || "").localeCompare(String(b.first_seen_at || "")));
@@ -271,10 +280,14 @@ renderResults = function renderResultsV7() {
     return;
   }
   const district = document.querySelector("#result-district").value;
+  const baths = document.querySelector("#result-baths").value;
   const onlyNew = document.querySelector("#only-new").checked;
   const freshStatuses = ["new", "updated", "relisted"];
   let availableItems = profileItems(state.activeProfile, state.activeStatus);
   if (district) availableItems = availableItems.filter((item) => item.district === district);
+  if (baths === "1") availableItems = availableItems.filter((item) => Number(item.baths) === 1);
+  if (baths === "2plus") availableItems = availableItems.filter((item) => Number(item.baths) >= 2);
+  if (baths === "unknown") availableItems = availableItems.filter((item) => item.baths === null || item.baths === undefined);
   if (onlyNew) availableItems = availableItems.filter((item) => freshStatuses.includes(item.lifecycle_status) && !isTrackingStale(item));
   renderNearFailureFiltersV7(availableItems);
   let items = ["near_match", "rejected"].includes(state.activeStatus) && state.nearFailureFilter
@@ -341,7 +354,7 @@ renderNavigation = function renderNavigationV7() {
   if (state.settings.districts.includes(current)) select.value = current;
 };
 
-["#result-sort", "#result-district", "#only-new"].forEach((selector) => {
+["#result-sort", "#result-district", "#result-baths", "#only-new"].forEach((selector) => {
   document.querySelector(selector).addEventListener("change", renderResults);
 });
 document.querySelector("#near-failure-filter-buttons").addEventListener("click", (event) => {

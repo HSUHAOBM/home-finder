@@ -18,7 +18,7 @@ from .user_models import HomeListing
 DETAIL_ID = re.compile(r"/detail/\d+/(?P<id>\d+)\.html")
 LAYOUT = re.compile(r"(?P<rooms>\d+(?:\.\d+)?)房(?P<living>\d+)廳(?P<baths>\d+)衛")
 FLOOR = re.compile(r"(?P<current>\d+)F/(?P<total>\d+)F", re.I)
-DETAIL_CACHE_PATH = "data/cache/591_details_v5.json"
+DETAIL_CACHE_PATH = "data/cache/591_details_v7.json"
 PRICE = re.compile(r"(?m)^\s*(?P<price>[\d,]+)\s*$\s*^\s*萬\s*$")
 DETAIL_PRICE = re.compile(
     r"(?m)^\s*(?P<price>[\d,]+)\s*(?:\r?\n\s*)?萬(?:元)?"
@@ -90,6 +90,10 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     )
     parking_match = re.search(r"車位\s*：\s*(.*?)\s*坪數說明", compact)
     main_match = re.search(r"主建物\s*：\s*([\d.]+)坪", compact)
+    age_match = re.search(
+        r"(?:(\d+(?:\.\d+)?)\s*年|(\d+)\s*個月)\s*屋齡",
+        compact,
+    )
     address_match = re.search(
         r"高雄市[\u4e00-\u9fff]{1,4}區[^\s，,。｜|]{2,40}?號", compact
     )
@@ -98,6 +102,13 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         compact,
     )
     warnings = list(listing.data_warnings)
+    age_years = listing.age_years
+    if age_match:
+        age_years = (
+            float(age_match.group(1))
+            if age_match.group(1)
+            else round(float(age_match.group(2)) / 12, 2)
+        )
 
     property_type = type_match.group(1).strip() if type_match else listing.property_type
     if property_type in {"透天厝", "別墅"} and listing.looks_like_collective_housing:
@@ -122,6 +133,7 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         has_parking = True
     else:
         parking_type = parking_raw
+        has_parking = True
     mechanical_description = re.search(
         r"(?:B\d+\s*)?機械(?:上層|下層|式)?(?:車位)?", feature_text, re.I
     )
@@ -151,6 +163,7 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         parking_type=parking_type,
         has_parking=has_parking,
         main_area_ping=float(main_match.group(1)) if main_match else listing.main_area_ping,
+        age_years=age_years,
         address=address_match.group(0) if address_match else listing.address,
         broker_name=broker_match.group(1).strip() if broker_match else listing.broker_name,
         has_garden=has_garden,

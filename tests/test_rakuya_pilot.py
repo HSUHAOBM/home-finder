@@ -133,6 +133,20 @@ def test_detail_conflict_uses_mechanical_value_instead_of_flat_title():
     assert "列表宣稱平面車位" in detail.data_warnings[0]
 
 
+def test_detail_explicit_no_parking_clears_stale_list_parking_type():
+    listing = HomeListing(
+        source="樂屋網", external_id="R", title="列表宣稱有車位",
+        url="https://example.com", city="高雄市", district="三民區",
+        total_price_wan=1000, property_type="電梯大樓",
+        parking_type="平面車位", has_parking=True,
+    )
+
+    detail = parse_rakuya_detail_text(listing, "車位\n無")
+
+    assert detail.parking_type == "無"
+    assert detail.has_parking is False
+
+
 def test_detail_does_not_treat_unrelated_company_as_broker():
     listing = HomeListing(
         source="樂屋網", external_id="R", title="測試",

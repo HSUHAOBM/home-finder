@@ -97,9 +97,14 @@ def test_two_missing_full_scans_archive_listing(tmp_path, monkeypatch):
 
 def test_v7_page_loads_region_and_filter_controls():
     page = web_app_v7.app.test_client().get("/").get_data(as_text=True)
+    script = (Path(web_app_v7.__file__).parent / "static" / "dashboard_v7.js").read_text(encoding="utf-8")
 
     assert "dashboard_v7.js" in page
     assert "dashboard_v7.css" in page
+    assert 'id="result-baths"' in script
+    assert 'data-sort-field="baths"' in script
+    assert 'data-sort-field="gap"' not in script
+    assert "(a.condition_gap_score || 0) - (b.condition_gap_score || 0)" in script
 
 
 def test_settings_save_button_discloses_progress_and_saved_district_count():

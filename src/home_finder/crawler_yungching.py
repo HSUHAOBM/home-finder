@@ -17,7 +17,7 @@ from .user_models import HomeListing
 
 SOURCE_NAME = "永慶房仲網"
 BASE_URL = "https://buy.yungching.com.tw"
-DETAIL_CACHE_PATH = "data/cache/yungching_details.json"
+DETAIL_CACHE_PATH = "data/cache/yungching_details_v2.json"
 CACHE_TTL_SECONDS = 24 * 60 * 60
 PROFILE_TYPES = {
     "大樓公寓華廈": {"電梯大樓", "華廈"},
@@ -120,6 +120,12 @@ def parse_yungching_detail_text(
     origin_source_match = re.search(r"\|\s*買房\s*\|\s*([^|]+?)\s*$", page_title or "")
     broker_match = re.search(r"\n([^\n]{2,40}(?:有限公司|加盟店))\s*\n", body_text)
     parking_type = _line_after(body_text, "車位資訊")
+    if parking_type is None:
+        has_parking = listing.has_parking
+    elif "無" in parking_type:
+        has_parking = False
+    else:
+        has_parking = True
     property_type = _property_type(body_text) or listing.property_type
     community = next((value for value in headings if value != title and not value.startswith("高雄市")), listing.community)
     warnings = list(listing.data_warnings)
@@ -144,7 +150,7 @@ def parse_yungching_detail_text(
         current_floor=int(floor.group(1)) if floor else listing.current_floor,
         total_floors=int(floor.group(2)) if floor else listing.total_floors,
         parking_type=parking_type or listing.parking_type,
-        has_parking=True if parking_type and "無" not in parking_type else listing.has_parking,
+        has_parking=has_parking,
         origin_source=origin_source_match.group(1).strip() if origin_source_match else None,
         origin_external_id=origin_id_match.group(1) if origin_id_match else None,
         broker_name=broker_match.group(1).strip() if broker_match else None,

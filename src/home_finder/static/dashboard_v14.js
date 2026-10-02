@@ -95,9 +95,7 @@ function syncCompareBarV14() {
   bar.hidden = !active;
   const mapButton = document.querySelector("#favorite-map-button");
   mapButton.hidden = false;
-  const count = activeMapItemsV14().length;
-  const currentCount = profileItems(state.activeProfile, state.activeStatus).length;
-  mapButton.textContent = active ? `收藏地圖（${count}）` : `房源地圖（${currentCount}）`;
+  mapButton.textContent = active ? "收藏地圖" : "房源地圖";
   document.querySelector("#favorite-compare-count").textContent = state.compareFavorites.size;
   document.querySelector("#favorite-compare-open").disabled = state.compareFavorites.size < 2;
 }

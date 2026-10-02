@@ -39,7 +39,7 @@ function goalRule(profile) {
 function goalDescription(profile) {
   if (!state.settings) return "";
   const config = state.settings.profiles[profile];
-  if (profile === "大樓公寓華廈") return `必要條件：總價不超過 ${number(config.max_price)} 萬、主建物至少 ${number(config.min_main_area)} 坪、至少 ${number(config.min_rooms)} 房${config.require_flat_parking ? "、平面車位" : ""}。理想總價 ${number(config.target_price)} 萬，偏好 ${number(config.preferred_min_baths)} 衛、屋齡 ${number(config.preferred_max_age)} 年內${config.prefer_high_floor ? "及高樓層" : ""}。`;
+  if (profile === "大樓公寓華廈") return `必要條件：總價不超過 ${number(config.max_price)} 萬、主建物至少 ${number(config.min_main_area)} 坪、至少 ${number(config.min_rooms)} 房、至少 ${number(config.preferred_min_baths)} 衛${config.require_flat_parking ? "、平面車位" : ""}。理想總價 ${number(config.target_price)} 萬，偏好屋齡 ${number(config.preferred_max_age)} 年內${config.prefer_high_floor ? "及高樓層" : ""}。`;
   if (profile === "透天別墅") return `必要條件：總價不超過 ${number(config.max_price)} 萬${config.require_parking ? "且可停汽車" : ""}。理想總價 ${number(config.target_price)} 萬，偏好屋齡 ${number(config.preferred_max_age)} 年內${config.prefer_garden ? "，花園或庭院加分" : ""}。`;
   return `必要條件：總價不超過 ${number(config.max_price)} 萬、室內／主建至少 ${number(config.min_main_area)} 坪、至少 ${number(config.min_rooms)} 房${config.require_flat_parking ? "、平面車位" : ""}。價格、主建物或戶別車位未公開時列待確認。`;
 }

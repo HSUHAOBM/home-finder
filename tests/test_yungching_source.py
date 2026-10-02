@@ -5,6 +5,7 @@ from home_finder.crawler_yungching import (
     parse_yungching_detail_text,
     parse_yungching_list_card,
 )
+from home_finder.user_models import HomeListing
 
 
 def test_parse_yungching_discounted_list_card_uses_current_price():
@@ -75,6 +76,20 @@ def test_detail_fields_override_misleading_flat_parking_title():
     assert result.origin_external_id == "YC1000798"
     assert result.broker_name == "信澤地產有限公司"
     assert "廣告標題寫平面／平移車位" in result.data_warnings[0]
+
+
+def test_detail_explicit_no_parking_overrides_list_parking_state():
+    listing = HomeListing(
+        source="永慶房仲網", external_id="7256663", title="列表宣稱有車位",
+        url="https://buy.yungching.com.tw/house/7256663", city="高雄市",
+        district="楠梓區", total_price_wan=888, property_type="電梯大樓",
+        parking_type="平面車位", has_parking=True,
+    )
+
+    result = parse_yungching_detail_text(listing, "車位資訊\n無")
+
+    assert result.parking_type == "無"
+    assert result.has_parking is False
 
 
 def test_yungching_list_url_contains_all_districts_and_page():

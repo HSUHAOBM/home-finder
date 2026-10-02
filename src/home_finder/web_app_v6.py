@@ -161,8 +161,19 @@ def _card(record: dict[str, Any], status: str, ideal_gaps: list[str] | None = No
     card = base._card(record)
     card["status"] = status
     card["ideal_gaps"] = ideal_gaps or []
+    failures = record.get("hard_failures", [])
+    card["failure_count"] = len(failures)
+    card["condition_gap_score"] = _condition_gap_score(failures)
     card["variants"] = record.get("_source_variants", [])
     return card
+
+
+def _condition_gap_score(failures: list[str]) -> int:
+    """Measure requirement distance while making no parking worse than non-flat parking."""
+    return sum(
+        2 if "詳情欄位顯示無汽車位" in failure else 1
+        for failure in failures
+    )
 
 
 def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -195,21 +206,16 @@ def build_dashboard_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
                 )
             else:
                 failures = record.get("hard_failures", [])
+                gap_score = _condition_gap_score(failures)
                 failure_counts.update(failures)
                 structural_mismatch = any(
                     "結構屬於集合住宅" in failure
                     or "排除疑似混入的車墅廣告" in failure
                     for failure in failures
                 )
-                parking_dealbreaker = any(
-                    "詳情欄位顯示無汽車位" in failure
-                    or "不是平面車位" in failure
-                    for failure in failures
-                )
                 if (
-                    1 <= len(failures) <= 2
+                    1 <= gap_score <= 4
                     and not structural_mismatch
-                    and not parking_dealbreaker
                 ):
                     groups["near_match"].append(_card(record, "near_match"))
                 else:

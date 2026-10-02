@@ -80,6 +80,7 @@ def evaluate_listing(
             _require_parking(listing, True, failures, missing)
         _required_number(listing.main_area_ping, config["min_main_area"], "主建物坪數", failures, missing)
         _required_number(listing.rooms, config["min_rooms"], "房數", failures, missing)
+        _required_number(listing.baths, config["preferred_min_baths"], "衛浴數", failures, missing)
     elif profile == "透天別墅":
         if listing.deal_kind != "中古屋":
             failures.append("不是中古屋")
@@ -101,6 +102,7 @@ def evaluate_listing(
             _require_parking(listing, True, failures, missing)
         _required_number(listing.main_area_ping, config["min_main_area"], "主建物坪數", failures, missing)
         _required_number(listing.rooms, config["min_rooms"], "房數", failures, missing)
+        _required_number(listing.baths, config["preferred_min_baths"], "衛浴數", failures, missing)
         estimates = []
         for warning in listing.data_warnings:
             match = re.search(r"粗估室內約\s*([\d.]+)\s*坪", warning)
@@ -125,15 +127,11 @@ def evaluate_listing(
         else:
             concerns.append(f"屋齡 {listing.age_years:g} 年，超過偏好 {preferred_age:g} 年")
 
-    preferred_baths = config.get("preferred_min_baths")
-    if preferred_baths is not None:
-        if listing.baths is None:
-            concerns.append("衛浴數不明")
-        elif listing.baths >= preferred_baths:
+    minimum_baths = config.get("preferred_min_baths")
+    if minimum_baths is not None and profile in {"大樓公寓華廈", "預售屋"}:
+        if listing.baths is not None and listing.baths >= minimum_baths:
             score += 8
-            strengths.append(f"有 {preferred_baths:g} 衛浴以上")
-        else:
-            concerns.append(f"未達 {preferred_baths:g} 衛浴偏好")
+            strengths.append(f"有 {minimum_baths:g} 衛浴以上")
 
     if profile == "大樓公寓華廈" and config.get("prefer_high_floor"):
         if listing.current_floor is not None and listing.current_floor == listing.total_floors:

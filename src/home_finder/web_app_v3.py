@@ -120,7 +120,7 @@ def validate_settings(raw: dict) -> dict:
             )
             target["min_rooms"] = _integer(incoming.get("min_rooms"), f"{profile}最低房數", 1, 10)
             target["preferred_min_baths"] = _integer(
-                incoming.get("preferred_min_baths"), f"{profile}偏好衛浴", 1, 10
+                incoming.get("preferred_min_baths"), f"{profile}最低衛浴數", 1, 10
             )
             target["require_flat_parking"] = bool(incoming.get("require_flat_parking"))
         if profile == "大樓公寓華廈":

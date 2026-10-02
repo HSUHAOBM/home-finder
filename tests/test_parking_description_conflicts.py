@@ -77,6 +77,20 @@ def test_recommendations_do_not_override_structured_flat_parking_or_garden():
     assert parsed.data_warnings == []
 
 
+def test_other_structured_parking_value_is_treated_as_existing_parking():
+    body = """
+    型態：電梯大樓 裝潢程度：尚未裝潢
+    車位：坡道固定車位 坪數說明
+    屋況特色：格局方正
+    買房知識
+    """
+
+    parsed = parse_detail_text(listing(), body)
+
+    assert parsed.parking_type == "坡道固定車位"
+    assert parsed.has_parking is True
+
+
 def test_resale_cache_path_is_versioned_after_parser_change():
     crawler = Browser591Crawler(
         districts=["大社區"],
@@ -85,4 +99,13 @@ def test_resale_cache_path_is_versioned_after_parser_change():
         sleep=lambda _seconds: None,
     )
 
-    assert crawler.cache_path.as_posix() == "data/cache/591_details_v5.json"
+    assert crawler.cache_path.as_posix() == "data/cache/591_details_v7.json"
+
+
+def test_detail_reads_age_in_months_from_summary():
+    parsed = parse_detail_text(
+        listing(),
+        "格局 3房2廳2衛1陽台 8個月 屋齡 28.5坪 權狀坪數 房屋介紹",
+    )
+
+    assert parsed.age_years == 0.67

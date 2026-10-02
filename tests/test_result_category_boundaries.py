@@ -55,7 +55,7 @@ def test_one_or_two_required_failures_are_only_in_barely_acceptable_group():
     assert payload["groups"]["rejected"] == []
 
 
-def test_explicitly_missing_or_non_flat_parking_is_always_rejected():
+def test_explicitly_missing_or_non_flat_parking_stays_in_near_match():
     payload = web_app_v6.build_dashboard_payload(
         [
             rejected_record("none", ["詳情欄位顯示無汽車位"]),
@@ -66,29 +66,45 @@ def test_explicitly_missing_or_non_flat_parking_is_always_rejected():
         ]
     )
 
-    assert payload["groups"]["near_match"] == []
-    assert [item["id"] for item in payload["groups"]["rejected"]] == [
+    assert [item["id"] for item in payload["groups"]["near_match"]] == [
         "none",
         "mechanical",
     ]
+    assert payload["groups"]["rejected"] == []
 
 
-def test_three_required_failures_remain_visible_in_rejected_group():
+def test_gap_score_above_four_remains_visible_in_rejected_group():
     payload = web_app_v6.build_dashboard_payload(
         [
             rejected_record(
-                "three",
+                "five-points",
                 [
                     "總價 1200 萬，超過 1150 萬",
-                    "不是平面車位：5.09坪，機械式，已含售金內",
+                    "詳情欄位顯示無汽車位",
                     "主建物坪數 12，低於最低 15",
+                    "衛浴數 1，低於最低 2",
                 ],
             )
         ]
     )
 
     assert payload["groups"]["near_match"] == []
-    assert [item["id"] for item in payload["groups"]["rejected"]] == ["three"]
+    assert [item["id"] for item in payload["groups"]["rejected"]] == ["five-points"]
+
+
+def test_parking_gap_score_ranks_no_parking_worse_than_mechanical():
+    payload = web_app_v6.build_dashboard_payload(
+        [
+            rejected_record("mechanical", ["不是平面車位：機械式"]),
+            rejected_record("none", ["詳情欄位顯示無汽車位"]),
+        ]
+    )
+
+    scores = {
+        item["id"]: (item["condition_gap_score"], item["failure_count"])
+        for item in payload["groups"]["near_match"]
+    }
+    assert scores == {"mechanical": (1, 1), "none": (2, 1)}
 
 
 def test_collective_housing_mislabeled_as_house_stays_rejected():
