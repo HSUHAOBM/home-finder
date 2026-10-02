@@ -34,7 +34,10 @@ def _require_parking(
     if flat_only:
         if listing.parking_type is None:
             missing.append("車位存在，但無法確認是否為平面車位")
-        elif "平面" not in listing.parking_type:
+        elif any(
+            marker in listing.parking_type
+            for marker in ("機械", "平移", "升降", "昇降")
+        ) or "平面" not in listing.parking_type:
             failures.append(f"不是平面車位：{listing.parking_type}")
 
 

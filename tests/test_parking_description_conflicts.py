@@ -91,6 +91,40 @@ def test_other_structured_parking_value_is_treated_as_existing_parking():
     assert parsed.has_parking is True
 
 
+def test_mixed_flat_and_mechanical_label_is_not_accepted_as_flat_parking():
+    body = """
+    型態：電梯大樓 裝潢程度：尚未裝潢
+    車位：2.314坪，平面式+機械式，已含售金內 坪數說明
+    主建物：24.6坪
+    屋況特色：平移車位可停休旅
+    買房知識
+    """
+
+    parsed = parse_detail_text(listing(), body)
+    result = evaluate_listing(
+        parsed, "大樓公寓華廈", copy.deepcopy(DEFAULT_SETTINGS)
+    )
+
+    assert parsed.parking_type == "2.314坪，平面式+機械式，已含售金內"
+    assert result.status == "rejected"
+    assert result.hard_failures == [
+        "不是平面車位：2.314坪，平面式+機械式，已含售金內"
+    ]
+
+
+def test_sliding_parking_label_is_not_accepted_as_flat_parking():
+    candidate = listing()
+    candidate.parking_type = "平移車位"
+    candidate.has_parking = True
+
+    result = evaluate_listing(
+        candidate, "大樓公寓華廈", copy.deepcopy(DEFAULT_SETTINGS)
+    )
+
+    assert result.status == "rejected"
+    assert result.hard_failures == ["不是平面車位：平移車位"]
+
+
 def test_resale_cache_path_is_versioned_after_parser_change():
     crawler = Browser591Crawler(
         districts=["大社區"],

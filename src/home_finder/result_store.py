@@ -8,7 +8,7 @@ from .storage import atomic_write_json
 
 
 RESULT_SCHEMA_VERSION = 1
-RANKING_VERSION = 3
+RANKING_VERSION = 4
 
 
 def make_result_document(records: list[dict[str, Any]]) -> dict[str, Any]:
