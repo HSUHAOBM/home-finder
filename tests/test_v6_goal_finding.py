@@ -55,7 +55,7 @@ def test_hard_match_with_lower_floor_is_only_acceptable():
 
     assert payload["summary"]["exact_match"] == 0
     assert payload["summary"]["acceptable"] == 1
-    assert "樓層未達全棟 2/3" in payload["groups"]["acceptable"][0]["ideal_gaps"][0]
+    assert "需 10 樓以上" in payload["groups"]["acceptable"][0]["ideal_gaps"][0]
 
 
 def test_similar_ads_are_grouped_as_one_property():

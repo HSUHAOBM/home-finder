@@ -21,7 +21,9 @@ if (searchGrid) {
 const condoSwitches = document.querySelector(".condo-settings .switches");
 if (condoSwitches) {
   condoSwitches.insertAdjacentHTML("beforeend", `
-    <label><input id="condo-require-high-floor" type="checkbox">樓層至少達全棟指定比例</label>
+    <label><input id="condo-require-high-floor" type="checkbox">高樓層為必要條件</label>
+    <label>樓層門檻方式<select id="condo-floor-mode"><option value="ratio">按全棟比例</option><option value="absolute">指定幾樓以上</option></select></label>
+    <label id="condo-min-floor-wrap" hidden>最低樓層<input id="condo-min-floor" type="number" min="1" max="100" value="10" required></label>
     <label class="floor-ratio-label">最低樓層比例
       <select id="condo-min-floor-ratio">
         <option value="0.5">1/2</option><option value="0.6">3/5</option>
@@ -30,6 +32,20 @@ if (condoSwitches) {
       </select>
     </label>`);
 }
+
+document.querySelector('#condo-high-floor').closest('label').hidden = true;
+function syncFloorControls() {
+  const absolute = document.querySelector('#condo-floor-mode').value === 'absolute';
+  document.querySelector('#condo-min-floor-wrap').hidden = !absolute;
+  document.querySelector('#condo-min-floor-ratio').closest('label').hidden = absolute;
+}
+document.querySelector('#condo-floor-mode').addEventListener('change', syncFloorControls);
+const parkingControls = [['大樓公寓華廈','condo-flat-parking'], ['透天別墅','house-parking'], ['預售屋','presale-flat-parking']];
+parkingControls.forEach(([,id]) => {
+  const label = document.getElementById(id).closest('label');
+  label.hidden = true;
+  label.insertAdjacentHTML('afterend', `<label>車位條件<select id="${id}-requirement"><option value="none">不限車位</option><option value="any">必須有汽車位（接受機械）</option><option value="flat">必須平面車位</option></select></label>`);
+});
 
 const previousFillSettingsForm = fillSettingsForm;
 fillSettingsForm = function fillSettingsFormV4() {
@@ -40,6 +56,13 @@ fillSettingsForm = function fillSettingsFormV4() {
   const condo = state.settings.profiles["大樓公寓華廈"];
   document.querySelector("#condo-require-high-floor").checked = condo.require_high_floor;
   document.querySelector("#condo-min-floor-ratio").value = String(condo.min_floor_ratio);
+  document.querySelector('#condo-floor-mode').value = condo.floor_mode || 'ratio';
+  document.querySelector('#condo-min-floor').value = condo.min_floor || 10;
+  syncFloorControls();
+  parkingControls.forEach(([profile,id]) => {
+    const config = state.settings.profiles[profile];
+    document.getElementById(`${id}-requirement`).value = config.parking_requirement || (config.require_flat_parking ? 'flat' : config.require_parking ? 'any' : 'none');
+  });
 };
 
 const previousCollectSettings = collectSettings;
@@ -49,6 +72,13 @@ collectSettings = function collectSettingsV4() {
   settings.search.publish_days = Number(document.querySelector("#publish-days").value);
   settings.profiles["大樓公寓華廈"].require_high_floor = document.querySelector("#condo-require-high-floor").checked;
   settings.profiles["大樓公寓華廈"].min_floor_ratio = Number(document.querySelector("#condo-min-floor-ratio").value);
+  settings.profiles['大樓公寓華廈'].floor_mode = document.querySelector('#condo-floor-mode').value;
+  settings.profiles['大樓公寓華廈'].min_floor = Number(document.querySelector('#condo-min-floor').value);
+  settings.profiles['大樓公寓華廈'].prefer_high_floor = true;
+  parkingControls.forEach(([profile,id]) => {
+    const mode = document.getElementById(`${id}-requirement`).value;
+    Object.assign(settings.profiles[profile], {parking_requirement:mode, require_flat_parking:mode === 'flat', require_parking:mode !== 'none'});
+  });
   return settings;
 };
 

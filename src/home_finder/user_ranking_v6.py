@@ -12,35 +12,39 @@ def evaluate_listing(listing: HomeListing, profile: ProfileName, settings: dict)
     result = _evaluate_listing(listing, profile, settings)
     config = settings["profiles"][profile]
 
-    if profile != "大樓公寓華廈" or not config.get("prefer_high_floor"):
+    if profile != "大樓公寓華廈" or not (config.get("prefer_high_floor") or config.get("require_high_floor")):
         return result
 
     ratio = float(config.get("min_floor_ratio", 2 / 3))
     ratio_label = "2/3" if abs(ratio - 2 / 3) < 0.001 else f"{ratio:.0%}"
-    if listing.current_floor is None or not listing.total_floors:
+    absolute = config.get("floor_mode") == "absolute"
+    threshold_label = f"{int(config.get('min_floor', 10))} 樓以上" if absolute else f"全棟 {ratio_label}"
+    if listing.current_floor is None or (not absolute and not listing.total_floors):
         if config.get("require_high_floor"):
             if "樓層資料不明" not in result.missing_required:
                 result.missing_required.append("樓層資料不明")
         elif "樓層資料不明，需確認是否達高樓層偏好" not in result.concerns:
             result.concerns.append("樓層資料不明，需確認是否達高樓層偏好")
     else:
-        minimum_floor = math.ceil(listing.total_floors * ratio - 1e-9)
+        minimum_floor = int(config.get("min_floor", 10)) if absolute else math.ceil(listing.total_floors * ratio - 1e-9)
         if listing.current_floor >= minimum_floor:
+            if "未確認符合高樓層偏好" in result.concerns:
+                result.concerns.remove("未確認符合高樓層偏好")
             result.score = round(min(100, result.score + 5), 1)
             result.strengths.append(
-                f"位於 {listing.current_floor}/{listing.total_floors} 樓，達全棟 {ratio_label} 高度偏好"
+                f"位於 {listing.current_floor}/{listing.total_floors or '?'} 樓，達 {threshold_label} 門檻"
             )
         elif config.get("require_high_floor"):
             result.hard_failures.append(
                 f"位於 {listing.current_floor}/{listing.total_floors} 樓，"
-                f"低於最低 {minimum_floor} 樓（全棟 {ratio_label}）"
+                f"低於最低 {minimum_floor} 樓（{threshold_label}）"
             )
         else:
             if "未確認符合高樓層偏好" in result.concerns:
                 result.concerns.remove("未確認符合高樓層偏好")
             result.concerns.append(
                 f"位於 {listing.current_floor}/{listing.total_floors} 樓，"
-                f"未達偏好樓層 {minimum_floor} 樓（全棟 {ratio_label}）"
+                f"未達偏好樓層 {minimum_floor} 樓（{threshold_label}）"
             )
 
     if result.hard_failures:

@@ -270,3 +270,24 @@ syncPresaleMapButtonV17();
 updateResultGuideV17();
 
 window.presaleStageV17 = presaleStageV17;
+
+function floorRequirementText(config) {
+  const ratio = config.min_floor_ratio || 2/3;
+  const ratioText = Math.abs(ratio - 2/3) < .001 ? '2/3' : `${Math.round(ratio * 100)}%`;
+  const threshold = config.floor_mode === 'absolute' ? `${config.min_floor || 10} 樓以上` : `全棟 ${ratioText} 以上`;
+  return `${threshold}（${config.require_high_floor ? '必要' : '偏好'}）`;
+}
+function parkingRequirementText(config) {
+  const mode = config.parking_requirement || (config.require_flat_parking ? 'flat' : config.require_parking ? 'any' : 'none');
+  return {none:'車位不限',any:'必須有汽車位（接受機械）',flat:'必須平面車位'}[mode];
+}
+goalRule = function(profile) {
+  if (!state.settings) return '';
+  const c = state.settings.profiles[profile];
+  return `${number(c.max_price)} 萬內・${parkingRequirementText(c)}` + (c.min_main_area ? `・主建 ≥ ${number(c.min_main_area)} 坪・${c.min_rooms} 房 ${c.preferred_min_baths} 衛以上` : '') + (profile === '大樓公寓華廈' ? `・${floorRequirementText(c)}` : '');
+};
+goalDescription = function(profile) {
+  if (!state.settings) return '';
+  const c = state.settings.profiles[profile];
+  return `必要條件：總價不超過 ${number(c.max_price)} 萬、${parkingRequirementText(c)}` + (c.min_main_area ? `、主建物至少 ${number(c.min_main_area)} 坪、至少 ${c.min_rooms} 房 ${c.preferred_min_baths} 衛` : '') + `。理想總價 ${number(c.target_price)} 萬。` + (profile !== '預售屋' ? `偏好屋齡 ${c.preferred_max_age} 年內。` : '') + (profile === '大樓公寓華廈' ? `樓層：${floorRequirementText(c)}。` : '') + (profile === '透天別墅' && c.prefer_garden ? '偏好花園或庭院。' : '');
+};

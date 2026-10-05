@@ -36,10 +36,10 @@ goalActionBarV6.insertAdjacentHTML(
         <strong>擴大搜尋</strong><small>近 15 天・每區 15 頁</small>
       </button>
       <button type="button" class="search-mode-button full-scan-button" data-search-mode="full">
-        <strong>完整盤點現有房源</strong><small>不限刊登時間・建議每週執行</small>
+        <strong>完整列表盤點</strong><small>不限刊登時間・詳情依設定上限</small>
       </button>
       <button type="button" class="search-mode-button full-scan-button" data-search-mode="all_details">
-        <strong>目前分類｜全部詳情</strong><small>不限刊登時間・不限詳情筆數</small>
+        <strong>目前房屋類型｜全部詳情</strong><small>完整列表＋全部詳情・不限筆數</small>
       </button>
     </div>
     <p id="search-mode-help" class="search-mode-help">快速找出最近刊登或更新的房源。</p>
@@ -49,8 +49,8 @@ goalActionBarV6.insertAdjacentHTML(
 const SEARCH_MODE_HELP_V6 = {
   daily: "快速找出最近刊登或更新的房源。",
   days_15: "補找近 15 天內可能被每日搜尋漏掉的房源。",
-  full: "盤點所選行政區目前仍在 591 列表的房源，不限制刊登日期；滿頁時會依價格與房型拆分。",
-  all_details: "只處理目前選取的分類，並逐筆讀取本輪找到的所有房源詳情。",
+  full: "盤點所選行政區的完整列表，詳情讀取依設定上限；不保證每筆都重新讀取詳情。",
+  all_details: "目前房屋類型指大樓、透天或預售屋；逐筆讀取本輪找到的所有詳情。選「三類依序爬」則三種類型都套用此模式。",
 };
 
 function selectSearchModeV6(mode) {
@@ -117,7 +117,7 @@ renderInsight = function renderInsightV6() {
   const secondary = [
     insight.acceptable ? `${insight.acceptable} 組可接受` : "",
     insight.needs_verification ? `${insight.needs_verification} 組待確認` : "",
-    insight.near_match ? `${insight.near_match} 組差強人意（1～2 項必要條件不符）` : "",
+    insight.near_match ? `${insight.near_match} 組差強人意（部分必要條件未達標）` : "",
   ].filter(Boolean).join("・") || "目前沒有接近的候選";
   const reasons = (insight.top_reasons || [])
     .map((item) => `<li><span>${escapeHtml(item.reason)}</span><b>${item.count} 組</b></li>`)

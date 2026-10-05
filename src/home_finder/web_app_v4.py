@@ -26,7 +26,7 @@ DEFAULT_SETTINGS["search"] = {
     "publish_days": 3,
 }
 DEFAULT_SETTINGS["profiles"]["大樓公寓華廈"].update(
-    {"require_high_floor": True, "min_floor_ratio": 2 / 3}
+    {"require_high_floor": True, "min_floor_ratio": 2 / 3, "floor_mode": "ratio", "min_floor": 10}
 )
 
 
@@ -34,6 +34,13 @@ def load_settings() -> dict:
     config = json.loads(base.CONFIG_PATH.read_text(encoding="utf-8"))
     stored = config.get("editable_criteria")
     result = previous._merge(DEFAULT_SETTINGS, stored)
+    for profile, values in result["profiles"].items():
+        saved = stored.get("profiles", {}).get(profile, {}) if isinstance(stored, dict) else {}
+        fallback = "flat" if values.get("require_flat_parking") else "any" if values.get("require_parking") else "none"
+        parking = saved.get("parking_requirement", fallback)
+        values["parking_requirement"] = parking
+        values["require_parking"] = parking != "none"
+        values["require_flat_parking"] = parking == "flat"
     if not isinstance(stored, dict) or "pages" not in stored.get("search", {}):
         result["search"] = copy.deepcopy(DEFAULT_SETTINGS["search"])
     return result
@@ -56,6 +63,22 @@ def validate_settings(raw: dict) -> dict:
     result["profiles"]["大樓公寓華廈"]["min_floor_ratio"] = previous._number(
         condo.get("min_floor_ratio"), "最低樓層比例", 0.5, 1
     )
+    mode = condo.get("floor_mode", "ratio")
+    if mode not in {"ratio", "absolute"}:
+        raise ValueError("樓層門檻方式不正確")
+    result["profiles"]["大樓公寓華廈"]["floor_mode"] = mode
+    result["profiles"]["大樓公寓華廈"]["min_floor"] = previous._integer(
+        condo.get("min_floor", 10), "最低樓層", 1, 100
+    )
+    for profile, values in result["profiles"].items():
+        incoming = raw.get("profiles", {}).get(profile, {})
+        fallback = "flat" if values.get("require_flat_parking") else "any" if values.get("require_parking") else "none"
+        parking = incoming.get("parking_requirement", fallback)
+        if parking not in {"none", "any", "flat"}:
+            raise ValueError("車位條件不正確")
+        values["parking_requirement"] = parking
+        values["require_flat_parking"] = parking == "flat"
+        values["require_parking"] = parking != "none"
     return result
 
 

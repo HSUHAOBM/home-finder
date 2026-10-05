@@ -218,8 +218,14 @@ function initializeOverviewMapV14(items) {
 
 document.querySelector("#favorite-map-button").addEventListener("click", () => {
   if (state.activeStatus !== "favorites") {
-    const url = `/property-map?profile=${encodeURIComponent(state.activeProfile)}&status=${encodeURIComponent(state.activeStatus)}`;
-    window.open(url, "_blank", "noopener");
+    const params = new URLSearchParams({profile:state.activeProfile,status:state.activeStatus});
+    const sortAliases = {newest:'newest-desc',price:'price-asc',failures:'failures-asc'};
+    const selectedSort = document.querySelector('#result-sort')?.value || 'metric-desc';
+    params.set('sort', sortAliases[selectedSort] || selectedSort);
+    params.set('district', document.querySelector('#result-district')?.value || '');
+    params.set('baths', document.querySelector('#result-baths')?.value || '');
+    params.set('failure', state.nearFailureFilter || '');
+    window.open(`/property-map?${params}`, "_blank", "noopener");
     return;
   }
   state.mapWorkspaceItems = activeMapItemsV14();

@@ -43,15 +43,25 @@
       </nav>
       <div class="map-toolbar" aria-label="地圖篩選">
         <label>行政區<select id="map-district"><option value="">全部行政區</option></select></label>
+        <label>衛浴<select id="map-baths"><option value="">全部</option><option value="1">1 衛</option><option value="2plus">2 衛以上</option><option value="unknown">待確認</option></select></label>
         <label>排序<select id="map-sort">
           <option value="metric-desc">符合度高到低</option>
           <option value="failures-asc">不符合項目少到多</option>
+          <option value="failures-desc">不符合項目多到少</option>
+          <option value="metric-asc">符合度低到高</option>
           <option value="price-asc">總價低到高</option>
           <option value="price-desc">總價高到低</option>
           <option value="total-unit-asc">權狀單價低到高</option>
+          <option value="total-unit-desc">權狀單價高到低</option>
           <option value="main-unit-asc">室內單價低到高</option>
+          <option value="main-unit-desc">室內單價高到低</option>
           <option value="age-asc">屋齡新到舊</option>
+          <option value="age-desc">屋齡舊到新</option>
+          <option value="baths-asc">衛浴少到多</option>
+          <option value="baths-desc">衛浴多到少</option>
+          <option value="floor">樓層比例高到低</option>
           <option value="newest-desc">最新發現</option>
+          <option value="newest-asc">最早發現</option>
         </select></label>
         <label id="map-failure-wrap" hidden>不符合項目<select id="map-failure"><option value="">全部原因</option></select></label>
         <label class="map-search"><span>搜尋</span><input id="map-search" type="search" placeholder="標題、社區或來源"></label>

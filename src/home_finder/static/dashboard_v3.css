@@ -49,3 +49,4 @@
   .form-grid, .form-grid.compact { grid-template-columns: 1fr; }
   .settings-block, .settings-profile { padding: 17px; }
 }
+.settings-dialog label[hidden] { display: none !important; }

@@ -47,6 +47,10 @@ def evaluate_listing(
     settings: dict,
 ) -> Evaluation:
     config = settings["profiles"][profile]
+    parking_requirement = config.get(
+        "parking_requirement",
+        "flat" if config.get("require_flat_parking") else "any" if config.get("require_parking") else "none",
+    )
     failures: list[str] = []
     missing: list[str] = []
     strengths: list[str] = []
@@ -79,8 +83,8 @@ def evaluate_listing(
             missing.append("建物型態不明")
         elif listing.property_type not in CONDO_TYPES:
             failures.append(f"建物型態是 {listing.property_type}，不是大樓／公寓／華廈")
-        if config["require_flat_parking"]:
-            _require_parking(listing, True, failures, missing)
+        if parking_requirement != "none":
+            _require_parking(listing, parking_requirement == "flat", failures, missing)
         _required_number(listing.main_area_ping, config["min_main_area"], "主建物坪數", failures, missing)
         _required_number(listing.rooms, config["min_rooms"], "房數", failures, missing)
         _required_number(listing.baths, config["preferred_min_baths"], "衛浴數", failures, missing)
@@ -96,13 +100,13 @@ def evaluate_listing(
                 f"樓層為 {listing.current_floor or '?'} / {listing.total_floors} 樓，"
                 "結構屬於集合住宅，不是透天／別墅"
             )
-        if config["require_parking"]:
-            _require_parking(listing, False, failures, missing)
+        if parking_requirement != "none":
+            _require_parking(listing, parking_requirement == "flat", failures, missing)
     else:
         if listing.deal_kind != "預售屋":
             failures.append("不是預售屋")
-        if config["require_flat_parking"]:
-            _require_parking(listing, True, failures, missing)
+        if parking_requirement != "none":
+            _require_parking(listing, parking_requirement == "flat", failures, missing)
         _required_number(listing.main_area_ping, config["min_main_area"], "主建物坪數", failures, missing)
         _required_number(listing.rooms, config["min_rooms"], "房數", failures, missing)
         _required_number(listing.baths, config["preferred_min_baths"], "衛浴數", failures, missing)

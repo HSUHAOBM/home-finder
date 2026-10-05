@@ -193,9 +193,10 @@ def _ideal_score(card: dict[str, Any], settings: dict) -> int:
         score += 20 if age is not None and age <= 10 else 14 if age is not None and age <= config["preferred_max_age"] else 0
         floor = card.get("floor")
         total = card.get("total_floors")
-        if floor is not None and total:
-            ratio = float(floor) / float(total)
-            score += 25 if floor == total else 20 if ratio >= 2 / 3 else 10 if ratio >= 0.6 else 0
+        if floor is not None:
+            ratio = float(floor) / float(total) if total else 0
+            floor_matches = float(floor) >= float(config.get("min_floor", 10)) if config.get("floor_mode") == "absolute" else ratio >= float(config.get("min_floor_ratio", 2 / 3))
+            score += 25 if floor == total else 20 if floor_matches else 10 if ratio >= 0.6 else 0
     return round(max(0, min(100, score)))
 
 

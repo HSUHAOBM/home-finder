@@ -144,12 +144,13 @@ def _ideal_gaps(record: dict[str, Any], settings: dict) -> list[str]:
         current = listing.get("current_floor")
         total = listing.get("total_floors")
         ratio = float(config.get("min_floor_ratio", 2 / 3))
-        if current is None or not total:
+        absolute = config.get("floor_mode") == "absolute"
+        if current is None or (not absolute and not total):
             gaps.append("樓層比例尚未確認")
         else:
-            minimum = math.ceil(float(total) * ratio - 1e-9)
+            minimum = int(config.get("min_floor", 10)) if absolute else math.ceil(float(total) * ratio - 1e-9)
             if int(current) < minimum:
-                gaps.append(f"樓層未達全棟 2/3（需 {minimum} 樓以上）")
+                gaps.append(f"樓層未達設定門檻（需 {minimum} 樓以上）")
 
     if profile == "透天別墅" and config.get("prefer_garden"):
         if not listing.get("has_garden"):

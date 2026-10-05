@@ -40,7 +40,7 @@ def test_v14_assets_launcher_and_features():
     assert "activeMapItemsV14" in script
     assert "房源地圖" in script
     assert 'mapButton.textContent = active ? "收藏地圖" : "房源地圖"' in script
-    assert "&status=" in script
+    assert "status:state.activeStatus" in script
     assert "mapButton.hidden = false" in script
     assert "listing-community" in script
     assert "state.mapWorkspaceItems" in script
