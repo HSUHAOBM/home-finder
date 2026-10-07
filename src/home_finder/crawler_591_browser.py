@@ -45,11 +45,16 @@ def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
     text = card["text"] or ""
     href = card["href"] or ""
     id_match = DETAIL_ID.search(href)
-    layout = LAYOUT.search(text)
+    layout = LAYOUT.search(re.sub(r"\s+", "", text))
     floor = FLOOR.search(text)
     price_matches = list(PRICE.finditer(text))
     price = price_matches[-1] if price_matches else None
-    if not id_match or not layout or not price:
+    structured_price = str(card.get("price_wan") or "").replace(",", "").strip()
+    price_value = float(structured_price) if re.fullmatch(r"\d+(?:\.\d+)?", structured_price) else (
+        float(price.group("price").replace(",", "")) if price else None
+    )
+    open_layout = "開放式格局" in text
+    if not id_match or (not layout and not open_layout) or price_value is None:
         raise ValueError("591 房源卡缺少 ID、格局或價格")
 
     age_match = re.search(r"(?m)^\s*(\d+(?:\.\d+)?)年\s*$", text)
@@ -65,13 +70,13 @@ def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
         url=href,
         city=city,
         district=(card["district"] or "").rstrip("-"),
-        total_price_wan=float(price.group("price").replace(",", "")),
+        total_price_wan=price_value,
         property_type=property_type,
         total_area_ping=_number(text, "權狀", "坪"),
         main_area_ping=_number(text, "主建", "坪"),
-        rooms=float(layout.group("rooms")),
-        living_rooms=float(layout.group("living")),
-        baths=float(layout.group("baths")),
+        rooms=float(layout.group("rooms")) if layout else None,
+        living_rooms=float(layout.group("living")) if layout else None,
+        baths=float(layout.group("baths")) if layout else None,
         age_years=float(age_match.group(1)) if age_match else None,
         current_floor=int(floor.group("current")) if floor else None,
         total_floors=int(floor.group("total")) if floor else None,
@@ -79,6 +84,7 @@ def parse_list_card(card: dict[str, str | None], city: str) -> HomeListing:
         address=card["address"],
         has_parking=True if "含車位" in tags else None,
         tags=tags,
+        data_warnings=["列表為開放式格局，房廳衛數待詳情確認"] if open_layout and not layout else [],
     )
 
 

@@ -8,7 +8,7 @@ from uuid import uuid4
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 from playwright.sync_api import (
     BrowserContext,
@@ -27,6 +27,7 @@ from .crawler_591_browser import (
 )
 from .crawler_591_browser_v3 import Browser591Crawler
 from .user_models import HomeListing
+from .kaohsiung_districts import SECTION_IDS
 
 
 PROFILE_SHAPES = {
@@ -37,6 +38,7 @@ PROFILE_TYPES = {
     "大樓公寓華廈": {"電梯大樓", "華廈"},
     "透天別墅": {"透天厝", "別墅"},
 }
+SHAPE_IDS = {"電梯大樓": "2", "華廈": "5", "透天厝": "3", "別墅": "4"}
 UPDATE_TEXT = re.compile(r"(?:剛剛|\d+\s*(?:分鐘|小時|天)前|今天|昨日|昨天)\s*更新")
 DETAIL_AGE = re.compile(r"屋齡\s*([\d.]+)\s*年|([\d.]+)\s*年\s*屋齡")
 COLLECTION_PRICE_BANDS = ("0_500", "500_750", "750_1000", "1000_1250", "1250_1500")
@@ -109,19 +111,26 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         page.wait_for_timeout(2500)
 
     def _read_profile_cards(self, page: Page) -> list[HomeListing]:
+        self._page_read_failed = False
         try:
             page.locator(".ware-item").first.wait_for(timeout=8000)
         except PlaywrightTimeoutError:
             self._audit("page_cards_timeout", url=page.url)
+            self._page_read_failed = True
             return []
         payloads = page.locator(".ware-item").evaluate_all(
             """cards => cards.map(card => {
-                const header = card.querySelector('.ware-item__header a');
+                const header = card.querySelector('.ware-item__header a')
+                    || card.querySelector('a[href*="/home/house/detail/"]');
                 const district = card.querySelector('.ware-item__section');
                 const community = card.querySelector('.ware-item__community-link');
                 const address = card.querySelector('.ware-item__address');
+                const price = card.querySelector('.ware-item__price-value');
                 return {
                     text: card.innerText || '', href: header ? header.href : '',
+                    recommendation: !card.querySelector('.ware-item__attrs'),
+                    external_id: card.getAttribute('data-id'),
+                    price_wan: price ? price.textContent.trim() : null,
                     title: header ? (header.getAttribute('title') || header.innerText) : '',
                     district: district ? district.innerText : '',
                     community: community ? community.innerText : null,
@@ -132,10 +141,19 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         listings: list[HomeListing] = []
         self._audit("page_cards_read", url=page.url, raw_count=len(payloads))
         for payload in payloads:
+            if payload.get("recommendation"):
+                self._audit("recommendation_skipped", card=payload)
+                continue
+            if not payload.get("href") and str(payload.get("external_id") or "").isdigit():
+                payload["href"] = (
+                    "https://sale.591.com.tw/home/house/detail/2/"
+                    + str(payload["external_id"]) + ".html"
+                )
             payload["href"] = urljoin("https://sale.591.com.tw", payload.get("href") or "")
             try:
                 listing = parse_list_card(payload, "高雄市")
             except ValueError as exc:
+                self._page_read_failed = True
                 id_match = DETAIL_ID.search(payload["href"])
                 self._audit("card_parse_failed", url=payload["href"],
                             external_id=id_match.group("id") if id_match else None,
@@ -160,6 +178,25 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             if not reasons:
                 listings.append(listing)
         return listings
+
+    def _query_parameters(self, districts, shapes=None, price_band=None) -> dict:
+        unknown = [district for district in districts if district not in SECTION_IDS]
+        if unknown:
+            raise ValueError("591 行政區代碼未設定：" + "、".join(unknown))
+        query = {"regionid": "17", "section": ",".join(str(SECTION_IDS[d]) for d in districts),
+                 "shape": ",".join(SHAPE_IDS[s] for s in shapes or PROFILE_SHAPES[self.profile]),
+                 "firstRow": "0", "shType": "list"}
+        if self.publish_days:
+            query["publish_day"] = str(self.publish_days)
+        if price_band:
+            query["price"] = price_band
+        return query
+
+    @staticmethod
+    def _filters_match(url: str, expected: dict) -> bool:
+        actual = parse_qs(urlparse(url).query)
+        return all(actual.get(key) == [str(value)] for key, value in expected.items()
+                   if key not in {"firstRow", "shType"})
 
     @staticmethod
     def _merge_cached(current: HomeListing, cached: HomeListing) -> HomeListing:
@@ -210,24 +247,20 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         self.districts = districts
         list_page = context.new_page()
         try:
-            query = {"regionid": 17, "firstRow": 0, "shType": "list"}
-            if self.publish_days:
-                query["publish_day"] = self.publish_days
-            if price_band:
-                query["price"] = price_band
+            query = self._query_parameters(districts, shapes, price_band)
             list_page.goto(
                 "https://sale.591.com.tw/?" + urlencode(query),
                 wait_until="domcontentloaded",
                 timeout=30000,
             )
-            self._select_districts(list_page)
-            self._select_shapes(list_page, shapes)
+            list_page.wait_for_timeout(2500)
             self._audit("query_started", url=list_page.url, districts=districts,
                         price_band=price_band, shapes=list(shapes or PROFILE_SHAPES[self.profile]))
 
             candidates: list[HomeListing] = []
             seen: set[str] = set()
             pages_scanned = 0
+            incomplete_reason = None
             for page_number in range(1, self.max_pages + 1):
                 if page_number > 1:
                     next_link = list_page.get_by_role("link", name="下一頁", exact=True)
@@ -235,23 +268,35 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                         self._audit("pagination_stopped", url=list_page.url,
                                     page_number=page_number - 1, reason="next_link_missing")
                         break
-                    next_url = urljoin(
-                        "https://sale.591.com.tw",
-                        next_link.first.get_attribute("href") or "",
-                    )
-                    if not next_url:
-                        self._audit("pagination_stopped", url=list_page.url,
-                                    reason="next_url_empty")
-                        break
                     self.sleep(self.delay_seconds)
-                    list_page.goto(
-                        next_url, wait_until="domcontentloaded", timeout=30000
+                    before = list_page.locator('.ware-item__header a').evaluate_all(
+                        "links => links.map(link => link.href).join('|')"
                     )
-                    list_page.wait_for_timeout(1800)
-                page_listings = self._read_profile_cards(list_page)
-                if not page_listings:
+                    try:
+                        page_query = {**query, "page": str(page_number),
+                                      "firstRow": str((page_number - 1) * 30)}
+                        list_page.goto("https://sale.591.com.tw/?" + urlencode(page_query),
+                                       wait_until="domcontentloaded", timeout=30000)
+                        list_page.wait_for_function(
+                            "previous => { const links = Array.from(document.querySelectorAll('.ware-item__header a'));"
+                            " return links.length > 0 && links.map(link => link.href).join('|') !== previous; }",
+                            arg=before, timeout=15000,
+                        )
+                        list_page.wait_for_timeout(700)
+                    except PlaywrightTimeoutError:
+                        incomplete_reason = "pagination_timeout_or_repeated_page"
+                        self._audit("pagination_stopped", url=list_page.url,
+                                    page_number=page_number, reason=incomplete_reason)
+                        break
+                if not self._filters_match(list_page.url, query):
+                    incomplete_reason = "filters_lost"
                     self._audit("pagination_stopped", url=list_page.url,
-                                page_number=page_number, reason="no_accepted_cards")
+                                page_number=page_number, reason=incomplete_reason, expected=query)
+                    break
+                page_listings = self._read_profile_cards(list_page)
+                if self._page_read_failed:
+                    incomplete_reason = "cards_timeout_or_parse_failed"
+                if self._page_read_failed and not page_listings:
                     break
                 self._audit("page_candidates", url=list_page.url,
                             page_number=page_number, count=len(page_listings))
@@ -272,7 +317,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             truncated = bool(next_href and pages_scanned >= self.max_pages)
             self._audit("query_finished", districts=districts, price_band=price_band,
                         pages_scanned=pages_scanned, candidates=len(candidates),
-                        next_href=next_href, truncated=truncated, allow_split=allow_split)
+                        next_href=next_href, truncated=truncated, allow_split=allow_split,
+                        incomplete_reason=incomplete_reason)
             queries = self.stats.setdefault("queries", [])
             if isinstance(queries, list):
                 queries.append(
@@ -283,7 +329,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                         "pages_scanned": pages_scanned,
                         "candidates": len(candidates),
                         "truncated": truncated,
-                        "unresolved": bool(truncated and not allow_split),
+                        "unresolved": bool(incomplete_reason or (truncated and not allow_split)),
+                        "incomplete_reason": incomplete_reason,
                     }
                 )
             if truncated and allow_split:
@@ -313,6 +360,17 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                         ]
                     )
             return candidates
+        except PlaywrightTimeoutError as exc:
+            self._audit("query_failed", districts=districts, error=str(exc),
+                        error_type=type(exc).__name__)
+            self.stats.setdefault("queries", []).append({
+                "districts": list(districts), "price_band": price_band,
+                "pages_scanned": locals().get("pages_scanned", 0),
+                "candidates": len(locals().get("candidates", [])),
+                "truncated": False, "unresolved": True,
+                "incomplete_reason": "query_timeout",
+            })
+            return locals().get("candidates", [])
         finally:
             self.districts = original_districts
             list_page.close()

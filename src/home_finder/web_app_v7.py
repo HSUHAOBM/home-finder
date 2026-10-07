@@ -139,6 +139,9 @@ def _successful_crawl_summary(
     for profile, diagnostic in diagnostics.items():
         if profile in by_profile or not isinstance(diagnostic, dict):
             continue
+        if (diagnostic.get("coverage_incomplete") or diagnostic.get("archiving_skipped")
+                or diagnostic.get("partial_errors") or _coverage_incomplete_reason(diagnostic)):
+            continue
         finished_at = diagnostic.get("finished_at")
         if not isinstance(finished_at, str):
             continue
@@ -369,6 +372,9 @@ def _full_scan_archive_skip_reason(
     profile: str,
     diagnostics: dict[str, Any],
 ) -> str | None:
+    coverage_reason = _coverage_incomplete_reason(diagnostics)
+    if coverage_reason:
+        return coverage_reason
     source_diagnostics = diagnostics.get("sources") or {}
     resale_diagnostics = source_diagnostics.get("591") or diagnostics
     queries = resale_diagnostics.get("queries") or []
@@ -406,6 +412,17 @@ def _full_scan_archive_skip_reason(
     if detail_failures >= len(fetched):
         return "本次讀取的房源詳情全部失敗"
     return None
+
+
+def _coverage_incomplete_reason(diagnostics: dict[str, Any]) -> str | None:
+    sources = diagnostics.get("sources") or {"591": diagnostics}
+    incomplete = []
+    for source_name, source in sources.items():
+        for query in source.get("queries") or []:
+            if query.get("unresolved") or query.get("incomplete_reason"):
+                districts = "、".join(query.get("districts") or [])
+                incomplete.append(f"{source_name} {districts}（{query.get('incomplete_reason') or '頁數上限'}）")
+    return "列表覆蓋不完整：" + "；".join(dict.fromkeys(incomplete)) if incomplete else None
 
 
 def _merge_full_scan_safely(
@@ -483,6 +500,8 @@ def _run_search(profile: str, mode: str, *, keep_running: bool = False) -> None:
             message=f"正在執行「{profile}」{mode_label}…",
         )
         fetched, diagnostics = _crawl_for_mode(profile, settings, config["source"], mode)
+        coverage_reason = _coverage_incomplete_reason(diagnostics)
+        partial = bool(coverage_reason or diagnostics.get("partial_errors"))
         fetched = annotate_history(fetched, path=HISTORY_PATH)
         fetched = reconcile_relisted(fetched, DELETED_LISTINGS_PATH)
         _record_fetched_availability(
@@ -498,7 +517,8 @@ def _run_search(profile: str, mode: str, *, keep_running: bool = False) -> None:
                 existing, fetched, profile, diagnostics
             )
         else:
-            existing = _mark_unseen_daily_listings(existing, fetched, profile)
+            if not partial:
+                existing = _mark_unseen_daily_listings(existing, fetched, profile)
             listings = previous.merge_search_results(existing, fetched, profile, mode)
 
         update_watchlist(listings, BROKER_WATCHLIST_PATH)
@@ -521,9 +541,11 @@ def _run_search(profile: str, mode: str, *, keep_running: bool = False) -> None:
         else:
             diagnostics.pop("archive_skip_reason", None)
         all_diagnostics = _load_json(DIAGNOSTICS_PATH)
+        diagnostics["coverage_incomplete"] = partial or bool(archive_skip_reason)
         all_diagnostics[profile] = diagnostics
         _write_json(DIAGNOSTICS_PATH, all_diagnostics)
-        _record_successful_crawl(profile, mode, diagnostics)
+        if not partial and not archive_skip_reason:
+            _record_successful_crawl(profile, mode, diagnostics)
 
         insight = build_dashboard_payload(records)["profile_insights"][profile]
         status_notes: list[str] = []
@@ -533,14 +555,19 @@ def _run_search(profile: str, mode: str, *, keep_running: bool = False) -> None:
             status_notes.append(f"{failed_sources}讀取失敗，其他來源已保留")
         if archive_skip_reason:
             status_notes.append(f"覆蓋不完整：{archive_skip_reason}；未更新可能下架狀態")
+        elif coverage_reason:
+            status_notes.append(f"{coverage_reason}；原有房源狀態已保留")
         status_note = f"；{'；'.join(status_notes)}" if status_notes else ""
         base._update_state(
             running=keep_running,
-            phase="profile_complete" if keep_running else "complete",
+            phase="profile_complete" if keep_running else (
+                "partial_complete" if partial or archive_skip_reason else "complete"
+            ),
+            coverage_incomplete=partial or bool(archive_skip_reason),
             active_profile=profile,
             search_mode=mode,
             message=(
-                f"{profile}{mode_label}{'部分完成' if archive_skip_reason else '完成'}："
+                f"{profile}{mode_label}{'部分完成' if partial or archive_skip_reason else '完成'}："
                 f"{insight['exact_match']} 組完全符合、"
                 f"{insight['acceptable']} 組可接受、本次讀取 {len(fetched)} 筆"
                 f"{status_note}"
@@ -567,7 +594,7 @@ def _run_all_profiles(mode: str) -> None:
     for profile in previous.PROFILES:
         _run_search(profile, mode, keep_running=True)
         snapshot = base._state_snapshot()
-        if snapshot.get("error"):
+        if snapshot.get("error") or snapshot.get("coverage_incomplete"):
             failures.append(profile)
     base._update_state(
         running=False,
