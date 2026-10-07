@@ -20,6 +20,7 @@ data/settings_history.json
 data/favorites.json
 data/search_diagnostics.json
 data/crawl_audit.jsonl
+data/crawler_591_trace.jsonl
 data/url_availability.json
 data/deleted_listings.json
 data/broker_watchlist.json

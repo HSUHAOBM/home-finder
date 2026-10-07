@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import re
+import json
+from datetime import datetime, timezone
+from functools import wraps
+from uuid import uuid4
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
@@ -38,6 +42,25 @@ DETAIL_AGE = re.compile(r"屋齡\s*([\d.]+)\s*年|([\d.]+)\s*年\s*屋齡")
 COLLECTION_PRICE_BANDS = ("0_500", "500_750", "750_1000", "1000_1250", "1250_1500")
 
 
+def traced_crawl(method):
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        self._run_id = uuid4().hex
+        self._audit("run_started", operation=method.__name__, districts=self.districts,
+                    max_pages=self.max_pages, publish_days=self.publish_days,
+                    max_details=self.max_details, collection_max_price=self.collection_max_price,
+                    requested_url=args[0] if args else None)
+        try:
+            result = method(self, *args, **kwargs)
+        except Exception as exc:
+            self._audit("run_failed", error_type=type(exc).__name__, error=str(exc))
+            raise
+        self._audit("run_finished", count=len(result) if isinstance(result, list) else 1,
+                    stats=self.stats)
+        return result
+    return wrapped
+
+
 class MultiPage591ResaleCrawler(Browser591Crawler):
     def __init__(
         self,
@@ -47,6 +70,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         publish_days: int = 3,
         max_details: int | None = 50,
         collection_max_price: float = 1300,
+        audit_path: str | Path | None = None,
         **kwargs,
     ) -> None:
         super().__init__(districts=districts, max_details=max_details, **kwargs)
@@ -63,6 +87,18 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         if self.collection_max_price <= 0:
             raise ValueError("collection_max_price 必須大於 0")
         self.stats: dict[str, object] = {}
+        self.audit_path = Path(audit_path) if audit_path is not None else (
+            Path(__file__).resolve().parents[2] / "data" / "crawler_591_trace.jsonl"
+        )
+        self._run_id = uuid4().hex
+
+    def _audit(self, event: str, **fields) -> None:
+        self.audit_path.parent.mkdir(parents=True, exist_ok=True)
+        record = {"timestamp": datetime.now(timezone.utc).isoformat(),
+                  "run_id": self._run_id, "source": "591", "profile": self.profile,
+                  "event": event, **fields}
+        with self.audit_path.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     def _select_shapes(self, page: Page, shapes: tuple[str, ...] | None = None) -> None:
         for shape in shapes or PROFILE_SHAPES[self.profile]:
@@ -76,6 +112,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         try:
             page.locator(".ware-item").first.wait_for(timeout=8000)
         except PlaywrightTimeoutError:
+            self._audit("page_cards_timeout", url=page.url)
             return []
         payloads = page.locator(".ware-item").evaluate_all(
             """cards => cards.map(card => {
@@ -93,11 +130,16 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             })"""
         )
         listings: list[HomeListing] = []
+        self._audit("page_cards_read", url=page.url, raw_count=len(payloads))
         for payload in payloads:
             payload["href"] = urljoin("https://sale.591.com.tw", payload.get("href") or "")
             try:
                 listing = parse_list_card(payload, "高雄市")
-            except ValueError:
+            except ValueError as exc:
+                id_match = DETAIL_ID.search(payload["href"])
+                self._audit("card_parse_failed", url=payload["href"],
+                            external_id=id_match.group("id") if id_match else None,
+                            error=str(exc), card=payload)
                 continue
             updated = UPDATE_TEXT.search(payload.get("text") or "")
             listing = replace(
@@ -105,11 +147,17 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 search_profile=self.profile,
                 listing_updated_text=updated.group(0) if updated else None,
             )
-            if (
-                listing.district in self.districts
-                and listing.total_price_wan <= self.collection_max_price
-                and listing.property_type in PROFILE_TYPES[self.profile]
-            ):
+            reasons = []
+            if listing.district not in self.districts:
+                reasons.append("district_not_selected")
+            if listing.total_price_wan > self.collection_max_price:
+                reasons.append("price_over_limit")
+            if listing.property_type not in PROFILE_TYPES[self.profile]:
+                reasons.append("property_type_not_selected")
+            self._audit("card_rejected" if reasons else "card_accepted",
+                        external_id=listing.external_id, url=listing.url,
+                        reasons=reasons, listing=listing.to_dict(), card=payload)
+            if not reasons:
                 listings.append(listing)
         return listings
 
@@ -174,6 +222,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             )
             self._select_districts(list_page)
             self._select_shapes(list_page, shapes)
+            self._audit("query_started", url=list_page.url, districts=districts,
+                        price_band=price_band, shapes=list(shapes or PROFILE_SHAPES[self.profile]))
 
             candidates: list[HomeListing] = []
             seen: set[str] = set()
@@ -182,12 +232,16 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 if page_number > 1:
                     next_link = list_page.get_by_role("link", name="下一頁", exact=True)
                     if not next_link.count():
+                        self._audit("pagination_stopped", url=list_page.url,
+                                    page_number=page_number - 1, reason="next_link_missing")
                         break
                     next_url = urljoin(
                         "https://sale.591.com.tw",
                         next_link.first.get_attribute("href") or "",
                     )
                     if not next_url:
+                        self._audit("pagination_stopped", url=list_page.url,
+                                    reason="next_url_empty")
                         break
                     self.sleep(self.delay_seconds)
                     list_page.goto(
@@ -196,12 +250,19 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                     list_page.wait_for_timeout(1800)
                 page_listings = self._read_profile_cards(list_page)
                 if not page_listings:
+                    self._audit("pagination_stopped", url=list_page.url,
+                                page_number=page_number, reason="no_accepted_cards")
                     break
+                self._audit("page_candidates", url=list_page.url,
+                            page_number=page_number, count=len(page_listings))
                 pages_scanned = page_number
                 for listing in page_listings:
                     if listing.external_id not in seen:
                         seen.add(listing.external_id)
                         candidates.append(listing)
+                    else:
+                        self._audit("duplicate_card_skipped", external_id=listing.external_id,
+                                    url=listing.url)
             next_link = list_page.get_by_role("link", name="下一頁", exact=True)
             next_href = (
                 next_link.first.get_attribute("href") or ""
@@ -209,6 +270,9 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 else ""
             )
             truncated = bool(next_href and pages_scanned >= self.max_pages)
+            self._audit("query_finished", districts=districts, price_band=price_band,
+                        pages_scanned=pages_scanned, candidates=len(candidates),
+                        next_href=next_href, truncated=truncated, allow_split=allow_split)
             queries = self.stats.setdefault("queries", [])
             if isinstance(queries, list):
                 queries.append(
@@ -261,6 +325,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             if not batch and self.publish_days == 0:
                 district = districts[0]
                 empty_batch_retries.append(district)
+                self._audit("empty_batch_retry", district=district)
                 self.sleep(self.delay_seconds)
                 batch = self._fetch_batch_candidates(context, districts)
             batch_candidates.append(batch)
@@ -279,6 +344,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                     candidates.append(listing)
         return candidates
 
+    @traced_crawl
     def fetch(self) -> list[HomeListing]:
         self.stats = {"queries": []}
         cache = self._load_cache()
@@ -295,6 +361,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             for listing in candidates:
                 cached_data = cache.get(listing.external_id)
                 if cached_data:
+                    self._audit("detail_cache_hit", external_id=listing.external_id,
+                                cache_path=str(self.cache_path) if hasattr(self, "cache_path") else None)
                     detailed.append(self._merge_cached(listing, HomeListing.from_dict(cached_data)))
                     continue
                 if (
@@ -302,6 +370,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                     and uncached_requests >= self.max_details
                 ):
                     deferred_details += 1
+                    self._audit("detail_deferred", external_id=listing.external_id,
+                                reason="detail_limit", limit=self.max_details)
                     detailed.append(
                         replace(
                             listing,
@@ -314,12 +384,17 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 if uncached_requests:
                     self.sleep(self.delay_seconds)
                 uncached_requests += 1
+                self._audit("detail_started", external_id=listing.external_id, url=listing.url)
                 try:
                     detail_page.goto(listing.url, wait_until="domcontentloaded", timeout=30000)
                     detail_page.locator("body").wait_for(timeout=15000)
                     detail_page.wait_for_timeout(1200)
                     item = parse_detail_text(listing, detail_page.locator("body").inner_text())
+                    self._audit("detail_parsed", external_id=listing.external_id,
+                                listing=item.to_dict())
                 except Exception as exc:
+                    self._audit("detail_failed", external_id=listing.external_id,
+                                url=listing.url, error_type=type(exc).__name__, error=str(exc))
                     item = replace(
                         listing,
                         lifecycle_status="possibly_removed",
@@ -355,6 +430,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
         )
         return detailed
 
+    @traced_crawl
     def fetch_url(self, url: str) -> HomeListing:
         parsed = urlparse(url)
         id_match = DETAIL_ID.search(parsed.path)
@@ -403,6 +479,8 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 search_profile=self.profile,
             )
             listing = parse_detail_text(listing, body)
+            self._audit("direct_detail_parsed", external_id=listing.external_id,
+                        url=canonical_url, listing=listing.to_dict())
         if listing.district not in self.districts:
             raise ValueError(
                 f"房源位於 {listing.district}，不在目前搜尋行政區"
