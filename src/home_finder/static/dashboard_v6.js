@@ -36,7 +36,7 @@ goalActionBarV6.insertAdjacentHTML(
         <strong>擴大搜尋</strong><small>近 15 天・每區 15 頁</small>
       </button>
       <button type="button" class="search-mode-button full-scan-button" data-search-mode="full">
-        <strong>完整列表盤點</strong><small>不限刊登時間・詳情依設定上限</small>
+        <strong>完整列表盤點</strong><small>不限刊登時間・補齊 591 中古屋詳情</small>
       </button>
       <button type="button" class="search-mode-button full-scan-button" data-search-mode="all_details">
         <strong>目前房屋類型｜全部詳情</strong><small>完整列表＋全部詳情・不限筆數</small>
@@ -47,9 +47,9 @@ goalActionBarV6.insertAdjacentHTML(
 );
 
 const SEARCH_MODE_HELP_V6 = {
-  daily: "快速找出最近刊登或更新的房源。",
+  daily: "找出最近刊登或更新的房源。車位為必要條件時，會補齊 591 中古屋詳情，首次查核需要較多時間。",
   days_15: "補找近 15 天內可能被每日搜尋漏掉的房源。",
-  full: "盤點所選行政區的完整列表，詳情讀取依設定上限；不保證每筆都重新讀取詳情。",
+  full: "盤點所選行政區的完整列表，補齊 591 中古屋未完成的詳情；已完成查核的資料使用有效快取，其他來源依設定上限。",
   all_details: "目前房屋類型指大樓、透天或預售屋；逐筆讀取本輪找到的所有詳情。選「三類依序爬」則三種類型都套用此模式。",
 };
 

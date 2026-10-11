@@ -418,7 +418,14 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
             deferred_details = 0
             for listing in candidates:
                 cached_data = cache.get(listing.external_id)
-                if cached_data:
+                # A failed detail or a parking tag without its type is not a
+                # completed verification and must not permanently block retries.
+                if cached_data and not (
+                    cached_data.get("lifecycle_status") == "possibly_removed"
+                    or not cached_data.get("parking_type")
+                    or any("車位資料矛盾" in warning
+                           for warning in cached_data.get("data_warnings", []))
+                ):
                     self._audit("detail_cache_hit", external_id=listing.external_id,
                                 cache_path=str(self.cache_path) if hasattr(self, "cache_path") else None)
                     detailed.append(self._merge_cached(listing, HomeListing.from_dict(cached_data)))
@@ -426,6 +433,7 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                 if (
                     self.max_details is not None
                     and uncached_requests >= self.max_details
+                    and not (listing.has_parking is True and not listing.parking_type)
                 ):
                     deferred_details += 1
                     self._audit("detail_deferred", external_id=listing.external_id,
@@ -459,8 +467,9 @@ class MultiPage591ResaleCrawler(Browser591Crawler):
                         data_warnings=listing.data_warnings + [f"詳情頁讀取失敗：{type(exc).__name__}"],
                     )
                 detailed.append(item)
-                cache[item.external_id] = item.to_dict()
-                self._save_cache(cache)
+                if item.lifecycle_status != "possibly_removed":
+                    cache[item.external_id] = item.to_dict()
+                    self._save_cache(cache)
             browser.close()
         queries = self.stats.get("queries", [])
         self.stats.update(

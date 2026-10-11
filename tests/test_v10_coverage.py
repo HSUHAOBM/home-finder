@@ -78,9 +78,12 @@ def test_full_scan_has_no_publish_day_limit_and_collects_to_1300(monkeypatch):
     assert captured["publish_days"] == 0
     assert captured["collection_max_price"] == 1300
     assert diagnostics["publish_days"] == 0
+    assert captured["max_details"] is None
+    assert diagnostics["details_limit"] is None
 
 
-def test_all_details_scan_removes_detail_limit(monkeypatch):
+@pytest.mark.parametrize("mode", ["all_details", "daily"])
+def test_parking_required_scan_removes_detail_limit(monkeypatch, mode):
     captured = {}
 
     class FakeCrawler:
@@ -95,13 +98,15 @@ def test_all_details_scan_removes_detail_limit(monkeypatch):
 
     monkeypatch.setattr(web_app_v7, "TimedResaleCrawler", FakeCrawler)
     settings = copy.deepcopy(web_app_v7.load_settings())
+    settings["profiles"]["大樓公寓華廈"]["parking_requirement"] = "flat"
 
     _, diagnostics = web_app_v7._crawl_for_mode(
-        "大樓公寓華廈", settings, {"collection_max_price": 1300}, "all_details",
+        "大樓公寓華廈", settings, {"collection_max_price": 1300}, mode,
     )
 
-    assert captured["max_pages"] == 10
-    assert captured["publish_days"] == 0
+    if mode == "all_details":
+        assert captured["max_pages"] == 10
+        assert captured["publish_days"] == 0
     assert captured["max_details"] is None
     assert diagnostics["details_limit"] is None
 

@@ -89,8 +89,12 @@ def _crawl_for_mode_multi(
             else search["publish_days"]
         ),
         "details_limit": (
-            None if mode == "all_details"
-            else int(search["resale_details"]) + max_details
+            None if mode == "all_details" or source_diagnostics.get("591", {}).get(
+                "details_limit", search["resale_details"]
+            ) is None
+            else int(source_diagnostics.get("591", {}).get(
+                "details_limit", search["resale_details"]
+            )) + max_details
         ),
         "fetched": len(fetched),
         "detail_failures": sum(

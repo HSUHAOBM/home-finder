@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from home_finder.crawler_591_multi import MultiPage591ResaleCrawler
 from home_finder.user_models import HomeListing
 
@@ -98,7 +100,8 @@ def test_full_scan_retries_an_empty_district_once(monkeypatch):
     assert subject.stats["empty_batch_retry_count"] == 1
 
 
-def test_detail_limit_keeps_remaining_list_candidates(monkeypatch, tmp_path: Path):
+@pytest.mark.parametrize("parking_pending", [False, True])
+def test_detail_limit_keeps_remaining_list_candidates(monkeypatch, tmp_path: Path, parking_pending):
     subject = MultiPage591ResaleCrawler(
         profile="大樓公寓華廈",
         districts=["楠梓區"],
@@ -110,13 +113,16 @@ def test_detail_limit_keeps_remaining_list_candidates(monkeypatch, tmp_path: Pat
         sleep=lambda _seconds: None,
     )
     candidates = [listing("A", "楠梓區"), listing("B", "楠梓區")]
+    if parking_pending:
+        candidates[1].has_parking = True
+        subject._save_cache({"B": candidates[1].to_dict()})
 
     class FakeLocator:
         def wait_for(self, **_kwargs):
             return None
 
         def inner_text(self):
-            return ""
+            return "車位：7.838坪，機械式，已含售金內 公設比：33% 坪數說明"
 
     class FakePage:
         def goto(self, *_args, **_kwargs):
@@ -159,6 +165,12 @@ def test_detail_limit_keeps_remaining_list_candidates(monkeypatch, tmp_path: Pat
     results = subject.fetch()
 
     assert [item.external_id for item in results] == ["A", "B"]
-    assert results[1].data_warnings == ["本輪尚未讀取詳情：已達 1 筆詳情頁上限"]
-    assert subject.stats["detail_requests"] == 1
-    assert subject.stats["detail_deferred"] == 1
+    if parking_pending:
+        assert results[1].parking_type == "7.838坪，機械式，已含售金內"
+        assert results[1].data_warnings == []
+        assert subject.stats["detail_requests"] == 2
+        assert subject.stats["detail_deferred"] == 0
+    else:
+        assert results[1].data_warnings == ["本輪尚未讀取詳情：已達 1 筆詳情頁上限"]
+        assert subject.stats["detail_requests"] == 1
+        assert subject.stats["detail_deferred"] == 1

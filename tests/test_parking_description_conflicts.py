@@ -91,6 +91,56 @@ def test_other_structured_parking_value_is_treated_as_existing_parking():
     assert parsed.has_parking is True
 
 
+def test_flat_parking_comparison_does_not_assert_mechanical_parking():
+    body = """
+    車位：4.171坪，平面式，已含售金內 公設比：33% 坪數說明
+    主建物：13.56坪
+    屋況特色：⑤ 平面車位，不用每天跟機械車位搏鬥 🚗
+    B3地下室平面車位，採坡道式進出。 買房知識
+    """
+    parsed = parse_detail_text(listing(), body)
+    assert parsed.parking_type == "4.171坪，平面式，已含售金內"
+    assert parsed.has_parking is True
+    assert parsed.data_warnings == []
+    for phrase in ("不是機械車位", "無機械車位困擾", "沒有機械車位"):
+        parsed = parse_detail_text(listing(), f"車位：平面式 坪數說明 屋況特色：{phrase} 買房知識")
+        assert parsed.parking_type == "平面式"
+        assert parsed.data_warnings == []
+
+
+def test_structured_parking_without_area_section():
+    parsed = parse_detail_text(listing(), "車位\n：\n平面式，已含售金內\n屋況特色\n景觀佳\n買房知識")
+    assert parsed.parking_type == "平面式，已含售金內"
+    assert parsed.has_parking is True
+
+
+def test_positive_mechanical_description_is_not_negated_by_very():
+    parsed = parse_detail_text(listing(), "車位：平面式 坪數說明 屋況特色：非常方便的B1機械車位 買房知識")
+    assert parsed.parking_type == "B1機械車位"
+    assert parsed.data_warnings
+
+
+def test_feature_parking_field_is_used_without_structured_parking():
+    parsed = parse_detail_text(listing(), "屋況特色：✅️車位：平面車位（B2-68） 買房知識 機械車位推薦")
+    assert parsed.parking_type == "平面車位（屋況特色）"
+    assert parsed.has_parking is True
+
+
+def test_nearby_rental_parking_is_not_owned_parking():
+    parsed = parse_detail_text(listing(), "屋況特色：附近可租平面車位 買房知識")
+    assert parsed.parking_type is None
+    assert parsed.has_parking is None
+
+
+def test_structured_flat_parking_shorthand_is_normalized():
+    for raw, expected in (("平車，已含售金內", "平面車位，已含售金內"),
+                          ("坡平，已含售金內", "坡道平面，已含售金內")):
+        parsed = parse_detail_text(listing(), f"車位：{raw} 坪數說明")
+        assert parsed.parking_type == expected
+        result = evaluate_listing(parsed, "大樓公寓華廈", copy.deepcopy(DEFAULT_SETTINGS))
+        assert not any("不是平面車位" in failure for failure in result.hard_failures)
+
+
 def test_mixed_flat_and_mechanical_label_is_not_accepted_as_flat_parking():
     body = """
     型態：電梯大樓 裝潢程度：尚未裝潢

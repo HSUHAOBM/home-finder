@@ -287,6 +287,15 @@ def _crawl_for_mode(
         # 透天量少且刊登週期長；每日搜尋也應保留仍有效的舊刊登。
         search["publish_days"] = 0
     delay = max(2.0, float(source.get("delay_seconds", 2)))
+    profile_config = settings["profiles"][profile]
+    parking_required = profile_config.get("parking_requirement", (
+        "flat" if profile_config.get("require_flat_parking")
+        else "any" if profile_config.get("require_parking") else "none"
+    )) != "none"
+    resale_details_limit = (
+        None if mode in {"full", "all_details"} or parking_required
+        else search["resale_details"]
+    )
     started = time.time()
     if profile == "預售屋":
         crawler = TimedPresaleCrawler(
@@ -301,7 +310,7 @@ def _crawl_for_mode(
             districts=settings["districts"],
             max_pages=search["pages"],
             publish_days=search["publish_days"],
-            max_details=None if mode == "all_details" else search["resale_details"],
+            max_details=resale_details_limit,
             collection_max_price=float(source.get("collection_max_price", 1300)),
             delay_seconds=delay,
             headless=True,
@@ -317,7 +326,7 @@ def _crawl_for_mode(
         "details_limit": (
             None if mode == "all_details"
             else search["presale_details"] if profile == "預售屋"
-            else search["resale_details"]
+            else resale_details_limit
         ),
         "fetched": len(listings),
         "detail_failures": sum(item.lifecycle_status == "possibly_removed" for item in listings),

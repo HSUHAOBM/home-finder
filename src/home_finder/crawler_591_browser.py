@@ -94,7 +94,11 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     type_match = re.search(
         r"型\s*態\s*：\s*(.*?)\s*裝\s*潢\s*程\s*度", compact
     )
-    parking_match = re.search(r"車位\s*：\s*(.*?)\s*坪數說明", compact)
+    parking_match = re.search(r"車位\s*：\s*(.*?)\s*(?:公設比|坪數說明)", compact)
+    parking_line = re.search(r"(?m)^\s*車位\s*：[^\S\r\n]*(?:\r?\n\s*)?([^\r\n]+)", body)
+    parking_line_value = parking_line.group(1).strip() if parking_line else None
+    if parking_line_value:
+        parking_line_value = re.split(r"\s*(?:公設比|坪數說明|屋況特色)", parking_line_value)[0].strip()
     main_match = re.search(r"主建物\s*：\s*([\d.]+)坪", compact)
     age_match = re.search(
         r"(?:(\d+(?:\.\d+)?)\s*年|(\d+)\s*個月)\s*屋齡",
@@ -107,7 +111,9 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
         r"經紀業名稱\s*：\s*([^\s，,。｜|]{2,60}?(?:有限公司|商號|企業社))",
         compact,
     )
-    warnings = list(listing.data_warnings)
+    warnings = [warning for warning in listing.data_warnings
+                if "本輪尚未讀取詳情" not in warning
+                and "詳情頁讀取失敗" not in warning]
     age_years = listing.age_years
     if age_match:
         age_years = (
@@ -124,7 +130,9 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
             "依集合住宅排除"
         )
         property_type = "電梯大樓"
-    parking_raw = parking_match.group(1).strip() if parking_match else None
+    parking_raw = parking_line_value or (parking_match.group(1).strip() if parking_match else None)
+    if parking_raw:
+        parking_raw = parking_raw.replace("坡平", "坡道平面").replace("平車", "平面車位")
     if parking_raw is None:
         parking_type = listing.parking_type
         has_parking = listing.has_parking
@@ -140,9 +148,23 @@ def parse_detail_text(listing: HomeListing, body: str) -> HomeListing:
     else:
         parking_type = parking_raw
         has_parking = True
-    mechanical_description = re.search(
+    if parking_raw is None:
+        flat_description = next((match for match in re.finditer(
+            r"坡道(?:式)?平面(?:式)?(?:車位)?|平面(?:式)?車位|平面式", feature_text
+        ) if not re.search(
+            r"(?:無|沒有|不是|非|可租|另租|需租|附近)[^，。；！？]{0,8}$",
+            feature_text[max(0, match.start() - 12):match.start()],
+        )), None)
+        if flat_description:
+            parking_type = f"{flat_description.group(0)}（屋況特色）"
+            has_parking = True
+    mechanical_description = next((match for match in re.finditer(
         r"(?:B\d+\s*)?機械(?:上層|下層|式)?(?:車位)?", feature_text, re.I
-    )
+    ) if not re.search(
+        r"(?:(?:不用|不必|無須|無需|告別|免於|不再|相比|比起|相較於)[^，。；！？]{0,16}"
+        r"|(?:不是|並非|沒有|無|非(?:為|屬)?)\s*)$",
+        feature_text[max(0, match.start() - 20):match.start()],
+    )), None)
     if mechanical_description:
         described_parking = mechanical_description.group(0)
         if parking_raw and "平面" in parking_raw:
